@@ -1,0 +1,30 @@
+{
+  "task_id": "1.6",
+  "task_name": "Topology-Invariant Fast-Path Parameter Resolution",
+  "branch": "perf-fast-param-resolve",
+  "commit_sha": "65d96e3fd8f1515359a8fde13b74806bf2bea374",
+  "timestamp": "2026-08-20T13:22:00Z",
+  "metrics": {
+    "parameter_sweep_1000q_x_100": {
+      "reference_baseline_ms": 546.8,
+      "local_baseline_ms": 1308.85,
+      "optimized_ms": 151.01,
+      "speedup_vs_local_baseline": 8.67,
+      "throughput_ops_per_sec": 662213
+    },
+    "optimizations": [
+      "O(1) fast-path return on unparameterized Circuit and Moment objects",
+      "Moment._fast_replace_resolved_ops reusing pre-validated disjoint qubit structures and bitmasks",
+      "Per-moment gate resolution caching and in-sequence gate reuse avoiding repeated SymPy evaluations",
+      "GateOperation parameter resolution in-place allocation bypassing duplicate qid shape validations",
+      "Fast-path numeric primitives in ParamResolver and resolve_parameters avoiding ABC instance checks"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 631,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}

@@ -535,7 +535,16 @@ graph TD
 ---
 
 ### Task 1.6: Topology-Invariant Fast-Path Parameter Resolution `[WAVE 3 - TRACK B3: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 65d96e3fd8f1515359a8fde13b74806bf2bea374)`
+- **Results**:
+  - Parameter sweep (1,000 qubits $\times$ 100 steps) latency: **151.01 ms** (local baseline: **1,308.85 ms**, **8.67x speedup**; reference baseline: **546.80 ms**, **3.62x speedup**; **662,213 ops/sec** throughput).
+  - $O(1)$ fast-path parameter resolution for unparameterized `Circuit` and `Moment` instances.
+  - Implemented `Moment._fast_replace_resolved_ops` reconstructing moments with pre-validated disjoint qubit structures, bitmasks, and metadata without re-verifying qubit uniqueness or re-allocating frozensets.
+  - Per-moment gate resolution caching and in-sequence gate deduplication avoiding redundant SymPy expression evaluations and gate instantiations.
+  - Inlined `GateOperation` parameter resolution bypassing duplicate `_validate_qid_shape` and star-args tuple unpacking.
+  - Fast-path primitive type checking in `ParamResolver` and `protocols.resolve_parameters` eliminating slow ABC `numbers.Number` instance checks.
+  - Unit tests: 631 passed (100% incremental line coverage on touched files, 0 regressions).
+  - Tracking Record: `benchmarks/tracking/task_1_6_65d96e3fd8f1515359a8fde13b74806bf2bea374.json`.
 - **Priority**: `P0`
 - **Estimated Effort**: 1 day
 - **Concurrency**: **Can run concurrently with Task 1.4 and Task 1.8**
@@ -544,6 +553,8 @@ graph TD
   - `cirq-core/cirq/protocols/resolve_parameters.py` (`resolve_parameters`)
   - `cirq-core/cirq/circuits/moment.py` (`Moment._resolve_parameters_`)
   - `cirq-core/cirq/circuits/circuit.py` (`Circuit._resolve_parameters_`)
+  - `cirq-core/cirq/ops/gate_operation.py` (`GateOperation._resolve_parameters_`)
+  - `cirq-core/cirq/study/resolver.py` (`ParamResolver.value_of`)
 
 #### Execution Workflow:
 1. **Create Feature Branch**:
