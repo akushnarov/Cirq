@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 import networkx as nx
 import numpy as np
+import scipy.sparse.csgraph
 
 if TYPE_CHECKING:
     import cirq
@@ -77,22 +78,40 @@ class MappingManager:
         # Construct the induced subgraph (on integers) and corresponding distance matrix.
         self._induced_subgraph_int = nx.relabel_nodes(
             nx.induced_subgraph(device_graph, initial_mapping.values()),
-            {q: self._physical_qid_to_int[q] for q in initial_mapping.values()},
+            {
+                q: self._physical_qid_to_int[q]
+                for q in initial_mapping.values()
+                if q in device_graph
+            },
         )
-        # Compute floyd warshall dictionary.
-        self._predecessors, self._distances = nx.floyd_warshall_predecessor_and_distance(
-            self._induced_subgraph_int
-        )
-        # For directed graphs, compute undirected distances and predecessors for swap operations
-        # (SWAPs are symmetric regardless of underlying gate direction constraints)
-        if self._induced_subgraph_int.is_directed():
-            undirected_induced_subgraph_int = self._induced_subgraph_int.to_undirected()
-            self._undirected_predecessors, self._undirected_distances = (
-                nx.floyd_warshall_predecessor_and_distance(undirected_induced_subgraph_int)
+        self._induced_subgraph_int.add_nodes_from(range(len(self._physical_qid_to_int)))
+        # Compute shortest paths using compiled scipy.sparse.csgraph kernels.
+        n = len(self._physical_qid_to_int)
+        if n > 0:
+            adj_matrix = nx.to_scipy_sparse_array(
+                self._induced_subgraph_int, nodelist=range(n), format='csr', dtype=np.int32
             )
+            self._distances, self._predecessors = scipy.sparse.csgraph.shortest_path(
+                adj_matrix,
+                directed=self._induced_subgraph_int.is_directed(),
+                return_predecessors=True,
+            )
+            # For directed graphs, compute undirected distances and predecessors for swap operations
+            # (SWAPs are symmetric regardless of underlying gate direction constraints)
+            if self._induced_subgraph_int.is_directed():
+                self._undirected_distances, self._undirected_predecessors = (
+                    scipy.sparse.csgraph.shortest_path(
+                        adj_matrix, directed=False, return_predecessors=True
+                    )
+                )
+            else:
+                self._undirected_predecessors = self._predecessors
+                self._undirected_distances = self._distances
         else:
-            self._undirected_predecessors = self._predecessors
+            self._distances = np.empty((0, 0), dtype=np.float64)
+            self._predecessors = np.empty((0, 0), dtype=np.int32)
             self._undirected_distances = self._distances
+            self._undirected_predecessors = self._predecessors
 
     @property
     def physical_qid_to_int(self) -> dict[cirq.Qid, int]:
@@ -145,7 +164,7 @@ class MappingManager:
         """Induced subgraph on physical qubit integers present in `self.logical_to_physical`."""
         return self._induced_subgraph_int
 
-    def dist_on_device(self, lq1: int, lq2: int, *, undirected=False) -> int:
+    def dist_on_device(self, lq1: int, lq2: int, *, undirected=False) -> int | float:
         """Finds distance between logical qubits 'lq1' and 'lq2' on the device.
 
         Args:
@@ -158,7 +177,9 @@ class MappingManager:
             The shortest path distance.
         """
         distances = self._undirected_distances if undirected else self._distances
-        return distances[self.logical_to_physical[lq1]][self.logical_to_physical[lq2]]
+        pq1, pq2 = self.logical_to_physical[lq1], self.logical_to_physical[lq2]
+        d = distances[pq1, pq2]
+        return int(d) if not np.isinf(d) else float('inf')
 
     def is_adjacent(self, lq1: int, lq2: int) -> bool:
         """Finds whether logical qubits `lq1` and `lq2` are adjacent on the device.
@@ -221,7 +242,17 @@ class MappingManager:
         Returns:
             A sequence of logical qubit integers on the shortest path from `lq1` to `lq2`.
         """
+        pq1, pq2 = self.logical_to_physical[lq1], self.logical_to_physical[lq2]
         predecessors = self._undirected_predecessors if undirected else self._predecessors
-        return self.physical_to_logical[
-            nx.reconstruct_path(*self.logical_to_physical[[lq1, lq2]], predecessors)
-        ]
+        if pq1 == pq2:
+            path = [pq1]
+        else:
+            path = [pq2]
+            curr = pq2
+            while curr != pq1:
+                curr = predecessors[pq1, curr]
+                if curr < 0:
+                    raise ValueError(f"No path on device from physical qubit {pq1} to {pq2}.")
+                path.append(curr)
+            path.reverse()
+        return self.physical_to_logical[path]

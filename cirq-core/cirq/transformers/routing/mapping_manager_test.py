@@ -235,3 +235,11 @@ def test_shortest_path_with_directed_graph():
     np.testing.assert_array_equal(
         q_int[::-1], mm.shortest_path(q_int[2], q_int[0], undirected=True)
     )
+
+
+def test_empty_mapping_manager():
+    mm = cirq.MappingManager(nx.Graph(), {})
+    assert len(mm.logical_qid_to_int) == 0
+    assert len(mm.physical_qid_to_int) == 0
+    assert len(mm.logical_to_physical) == 0
+    assert len(mm.physical_to_logical) == 0
