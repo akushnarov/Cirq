@@ -318,6 +318,13 @@ class GateOperation(raw_types.Operation):
 
     def _resolve_parameters_(self, resolver: cirq.ParamResolver, recursive: bool) -> cirq.Operation:
         resolved_gate = protocols.resolve_parameters(self.gate, resolver, recursive)
+        if self._gate is resolved_gate:
+            return self
+        if type(self) is GateOperation:
+            op = GateOperation.__new__(GateOperation)
+            op._gate = resolved_gate
+            op._qubits = self._qubits
+            return op
         return self.with_gate(resolved_gate)
 
     def _circuit_diagram_info_(self, args: cirq.CircuitDiagramInfoArgs) -> cirq.CircuitDiagramInfo:

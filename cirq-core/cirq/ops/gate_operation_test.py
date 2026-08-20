@@ -394,6 +394,8 @@ def test_with_gate() -> None:
     g2 = cirq.GateOperation(cirq.Y, cirq.LineQubit.range(1))
     assert g1.with_gate(cirq.X) is g1
     assert g1.with_gate(cirq.Y) == g2
+    # Direct _resolve_parameters_ when resolved gate is identical
+    assert g1._resolve_parameters_(cirq.ParamResolver({'v': 0.1}), True) is g1
 
 
 def test_with_measurement_key_mapping() -> None:

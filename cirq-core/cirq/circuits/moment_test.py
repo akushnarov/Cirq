@@ -363,10 +363,28 @@ def test_resolve_parameters_no_change() -> None:
     moment = cirq.Moment(cirq.X(a), cirq.Y(b))
     resolved_moment = cirq.resolve_parameters(moment, cirq.ParamResolver({'v': 0.1, 'w': 0.2}))
     assert resolved_moment is moment
+    # Direct _resolve_parameters_ on unparameterized moment returns self.
+    assert moment._resolve_parameters_(cirq.ParamResolver({'v': 0.1}), True) is moment
 
     moment = cirq.Moment(cirq.X(a) ** sympy.Symbol('v'), cirq.Y(b) ** sympy.Symbol('w'))
     resolved_moment = cirq.resolve_parameters(moment, cirq.ParamResolver({}))
     assert resolved_moment is moment
+
+    # Consecutive operations with the same gate trigger prev_gate caching.
+    gate = cirq.X ** sympy.Symbol('v')
+    m_multi = cirq.Moment(gate.on(a), gate.on(b))
+    res_multi = cirq.resolve_parameters(m_multi, {'v': 0.5})
+    assert res_multi == cirq.Moment(cirq.X(a) ** 0.5, cirq.X(b) ** 0.5)
+
+    # Parameter resolution with non-GateOperation instances.
+    c_sub = cirq.FrozenCircuit(cirq.X(a) ** sympy.Symbol('v'))
+    c_op = cirq.CircuitOperation(c_sub)
+    m_cop = cirq.Moment(c_op)
+    res_cop = cirq.resolve_parameters(m_cop, {'v': 0.5})
+    assert not cirq.is_parameterized(res_cop)
+    # Non-GateOperation with non-matching resolver leaves moment unchanged.
+    res_cop_unmatched = cirq.resolve_parameters(m_cop, {'unrelated': 1.0})
+    assert res_cop_unmatched == m_cop
 
 
 def test_parameter_names() -> None:

@@ -77,6 +77,8 @@ def is_parameterized(val: Any) -> bool:
         method above exists or if that method returns NotImplemented,
         this will default to False.
     """
+    if isinstance(val, (int, float, complex, str, bytes)):
+        return False
     if isinstance(val, sympy.Basic):
         return True
     if isinstance(val, numbers.Number):
@@ -85,10 +87,10 @@ def is_parameterized(val: Any) -> bool:
         return any(is_parameterized(e) for e in val)
 
     getter = getattr(val, '_is_parameterized_', None)
-    result = NotImplemented if getter is None else getter()
-
-    if result is not NotImplemented:
-        return result
+    if getter is not None:
+        result = getter()
+        if result is not NotImplemented:
+            return bool(result)
 
     return bool(parameter_names(val))
 
@@ -105,6 +107,8 @@ def parameter_names(val: Any) -> Set[str]:
         does not implement the _parameter_names_ magic method or that method
         returns NotImplemented, returns an empty set.
     """
+    if isinstance(val, (int, float, complex, str, bytes)):
+        return set()
     if isinstance(val, sympy.Basic):
         return {cast(sympy.Symbol, symbol).name for symbol in val.free_symbols}
     if isinstance(val, numbers.Number):
@@ -113,9 +117,10 @@ def parameter_names(val: Any) -> Set[str]:
         return {name for e in val for name in parameter_names(e)}
 
     getter = getattr(val, '_parameter_names_', None)
-    result = NotImplemented if getter is None else getter()
-    if result is not NotImplemented:
-        return result
+    if getter is not None:
+        result = getter()
+        if result is not NotImplemented:
+            return result
 
     return set()
 
@@ -173,20 +178,22 @@ def resolve_parameters(
     if not isinstance(param_resolver, study.ParamResolver):
         param_resolver = study.ParamResolver(param_resolver)
 
-    is_parameterized = (
-        val._is_parameterized_() if hasattr(val, '_is_parameterized_') else NotImplemented
-    )
-    if is_parameterized is not NotImplemented and not is_parameterized:
+    if isinstance(val, (int, float, complex, str, bytes)):
+        return val
+
+    is_param_func = getattr(val, '_is_parameterized_', None)
+    if is_param_func is not None:
+        is_param = is_param_func()
+        if is_param is not NotImplemented and not is_param:
+            return val
+    elif isinstance(val, numbers.Number):
         return val
 
     getter = getattr(val, '_resolve_parameters_', None)
-    if getter is None:
-        result = NotImplemented
-    else:
+    if getter is not None:
         result = getter(param_resolver, recursive)
-
-    if result is not NotImplemented:
-        return result
+        if result is not NotImplemented:
+            return result
 
     # Handle special cases for sympy expressions and sequences.
     # These may not in fact preserve types, but we pretend they do by casting.

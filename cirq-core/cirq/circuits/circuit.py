@@ -1350,23 +1350,30 @@ class AbstractCircuit(abc.ABC):
         return op_params | tag_params
 
     def _resolve_parameters_(self, resolver: cirq.ParamResolver, recursive: bool) -> Self:
+        if not self._is_parameterized_():
+            return self
         changed = False
         resolved_moments: list[cirq.Moment] = []
-        resolved_tags: list[Hashable] = []
-        for moment in self:
+        for moment in self.moments:
+            if not moment._is_parameterized_():
+                resolved_moments.append(moment)
+                continue
             resolved_moment = protocols.resolve_parameters(moment, resolver, recursive)
             if resolved_moment is not moment:
                 changed = True
             resolved_moments.append(resolved_moment)
-        for tag in self.tags:
-            resolved_tag = protocols.resolve_parameters(tag, resolver, recursive)
-            if resolved_tag is not tag:
-                changed = True
-            resolved_tags.append(resolved_tag)
+        if self.tags:
+            resolved_tags: list[Hashable] = []
+            for tag in self.tags:
+                resolved_tag = protocols.resolve_parameters(tag, resolver, recursive)
+                if resolved_tag is not tag:
+                    changed = True
+                resolved_tags.append(resolved_tag)
+        else:
+            resolved_tags = ()
         if changed:
             return self._from_moments(resolved_moments, tags=resolved_tags)
-        else:
-            return self  # pragma: no cover
+        return self
 
     def _qasm_(self, args: cirq.QasmArgs | None = None) -> str:
         if args is None:
@@ -1899,7 +1906,10 @@ class Circuit(AbstractCircuit):
     @classmethod
     def _from_moments(cls, moments: Iterable[cirq.Moment], tags: Sequence[Hashable]) -> Circuit:
         new_circuit = Circuit()
-        new_circuit._moments[:] = moments
+        if type(moments) is list:
+            new_circuit._moments = moments
+        else:
+            new_circuit._moments[:] = moments
         new_circuit._placement_cache = None
         new_circuit._tags = tuple(tags)
         return new_circuit

@@ -26,6 +26,7 @@ import numpy as np
 from cirq import _compat, ops, protocols, qis
 from cirq._import import LazyLoader
 from cirq.ops import op_tree, raw_types
+from cirq.ops.gate_operation import GateOperation
 from cirq.protocols import circuit_diagram_info_protocol
 
 if TYPE_CHECKING:
@@ -393,20 +394,72 @@ class Moment:
     def _parameter_names_(self) -> Set[str]:
         return {name for op in self for name in protocols.parameter_names(op)}
 
+    def _fast_replace_resolved_ops(
+        self, resolved_ops: Sequence[cirq.Operation] | tuple[cirq.Operation, ...]
+    ) -> cirq.Moment:
+        """Constructs a new Moment with resolved operations without re-validating qubits."""
+        m = Moment(_flatten_contents=False)
+        m._operations = tuple(resolved_ops) if type(resolved_ops) is not tuple else resolved_ops
+        m._sorted_operations = None
+        m._qubits = self._qubits if self._qubits is not None else self.qubits
+        m._qubit_to_op = None
+        m._measurement_key_objs = None
+        m._control_keys = None
+        m._tags = self._tags
+        return m
+
     def _resolve_parameters_(self, resolver: cirq.ParamResolver, recursive: bool) -> cirq.Moment:
+        if not self._is_parameterized_():
+            return self
         changed = False
         resolved_ops: list[cirq.Operation] = []
-        for op in self:
-            resolved_op = protocols.resolve_parameters(op, resolver, recursive)
-            changed = (
-                changed
-                or resolved_op != op
-                or (protocols.is_parameterized(op) and not protocols.is_parameterized(resolved_op))
-            )
+        gate_cache: dict[cirq.Gate, cirq.Gate] = {}
+        prev_gate: cirq.Gate | None = None
+        prev_resolved_gate: cirq.Gate | None = None
+        for op in self._operations:
+            if type(op) is GateOperation:
+                gate = op._gate
+                if gate is prev_gate or (prev_gate is not None and gate == prev_gate):
+                    resolved_gate = prev_resolved_gate
+                else:
+                    resolved_gate = gate_cache.get(gate)
+                    if resolved_gate is None:
+                        resolved_gate = protocols.resolve_parameters(gate, resolver, recursive)
+                        gate_cache[gate] = resolved_gate
+                    prev_gate = gate
+                    prev_resolved_gate = resolved_gate
+                if resolved_gate is gate or (
+                    resolved_gate == gate
+                    and not (
+                        protocols.is_parameterized(gate)
+                        and not protocols.is_parameterized(resolved_gate)
+                    )
+                ):
+                    resolved_op = op
+                else:
+                    if not changed:
+                        changed = True
+                    new_op = GateOperation.__new__(GateOperation)
+                    new_op._gate = resolved_gate
+                    new_op._qubits = op._qubits
+                    resolved_op = new_op
+            else:
+                resolved_op = protocols.resolve_parameters(op, resolver, recursive)
+                if not changed and (
+                    resolved_op is not op
+                    and (
+                        resolved_op != op
+                        or (
+                            protocols.is_parameterized(op)
+                            and not protocols.is_parameterized(resolved_op)
+                        )
+                    )
+                ):
+                    changed = True
             resolved_ops.append(resolved_op)
         if not changed:
             return self
-        return Moment(resolved_ops)
+        return self._fast_replace_resolved_ops(resolved_ops)
 
     def _with_measurement_key_mapping_(self, key_map: Mapping[str, str]):
         return Moment(

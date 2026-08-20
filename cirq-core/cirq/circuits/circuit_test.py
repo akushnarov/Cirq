@@ -3039,6 +3039,10 @@ def test_is_parameterized(circuit_cls, resolve_fn) -> None:
 
     circuit = resolve_fn(circuit, cirq.ParamResolver({'w': 0.2}))
     assert not cirq.is_parameterized(circuit)
+    # Direct _resolve_parameters_ calls on unparameterized and unmatching circuits
+    assert circuit._resolve_parameters_(cirq.ParamResolver({'v': 0.1}), True) is circuit
+    param_c = circuit_cls([cirq.X(a) ** sympy.Symbol('v')])
+    assert param_c._resolve_parameters_(cirq.ParamResolver({'unrelated': 1.0}), True) is param_c
 
 
 @pytest.mark.parametrize('circuit_cls', [cirq.Circuit, cirq.FrozenCircuit])

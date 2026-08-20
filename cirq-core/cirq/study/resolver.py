@@ -145,7 +145,7 @@ class ParamResolver:
             value = value.name
         if isinstance(value, str):
             param_value = self._param_dict_with_str_keys.get(value, _NOT_FOUND)
-            if isinstance(param_value, float):
+            if isinstance(param_value, (int, float, complex, np.number)):
                 return param_value
             if param_value is _NOT_FOUND:
                 # Symbol or string cannot be resolved if not in param dict; return as symbol.
@@ -300,7 +300,7 @@ class ParamResolver:
 
 
 def _resolve_value(val: Any) -> Any:
-    if isinstance(val, float) or val is None:
+    if isinstance(val, (int, float, complex, np.number)) or val is None:
         return val
     if isinstance(val, numbers.Number) and not isinstance(val, sympy.Basic):
         return val
