@@ -1,0 +1,28 @@
+{
+  "task_id": "1.2",
+  "task_name": "Slotted Method Caching and Fast-Path Value Equality",
+  "branch": "perf-fast-equality",
+  "commit_sha": "b85d3e766fead066378e906385d064dd788102a0",
+  "timestamp": "2026-08-20T13:05:00Z",
+  "metrics": {
+    "gate_operation_equality_ns": {
+      "reference_baseline_ns": 942.0,
+      "local_baseline_ns": 468.23,
+      "optimized_ns": 176.47,
+      "speedup_factor_vs_ref": 5.34,
+      "speedup_factor_vs_local": 2.65
+    },
+    "symmetric_cz_equality_ns": {
+      "baseline_ns": 1976.95,
+      "optimized_ns": 1236.81,
+      "speedup_factor": 1.6
+    }
+  },
+  "verification": {
+    "unit_tests_passed": 5946,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}

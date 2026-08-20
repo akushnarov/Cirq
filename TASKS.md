@@ -320,7 +320,15 @@ graph TD
 ---
 
 ### Task 1.2: Slotted Method Caching & Fast-Path Value Equality `[WAVE 2 - TRACK A2: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: b85d3e766fead066378e906385d064dd788102a0)`
+- **Results**:
+  - `GateOperation.__eq__` latency: **176.47 ns** (reference baseline: **942.00 ns**, **5.34x speedup**; local baseline: **468.23 ns**, **2.65x speedup**).
+  - Inlined fast path for identical gate/qubit pointers and equality guards in `GateOperation.__eq__`.
+  - Zero intermediate allocation fast path for 2-qubit symmetric gates (`CZ`, `SWAP`, `ISWAP`, etc.) in `GateOperation.__eq__` and `_group_interchangeable_qubits`.
+  - `_compat.cached_method` refactored to use `_NOT_CACHED` sentinel lookup, eliminating `AttributeError` exception throwing and catching on slotted class memoization.
+  - Value equality comparisons fast-pathed across identical types in `_value_equality_eq` and `_value_equality_approx_eq`.
+  - Unit tests: 5,946 passed (100% incremental line coverage on touched files).
+  - Tracking Record: `benchmarks/tracking/task_1_2_b85d3e766fead066378e906385d064dd788102a0.json`.
 - **Priority**: `P0`
 - **Estimated Effort**: 1 day
 - **Concurrency**: **Can run concurrently with Task 1.3 and Task 1.5**
