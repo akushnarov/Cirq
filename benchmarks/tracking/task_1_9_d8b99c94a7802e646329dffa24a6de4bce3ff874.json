@@ -1,0 +1,15 @@
+{
+  "task_id": "Task 1.9",
+  "branch": "perf-fast-decompose",
+  "commit_sha": "d8b99c94a7802e646329dffa24a6de4bce3ff874",
+  "timestamp": "2026-08-20T10:16:10Z",
+  "metrics": {
+    "decompose_50k_swaps_latency_s": 2.1736,
+    "decompose_throughput_ops_per_sec": 103309.4,
+    "has_unitary_100k_latency_s": 0.0576,
+    "has_unitary_throughput_ops_per_sec": 1735130.9,
+    "unitary_100k_latency_s": 0.9445,
+    "unitary_throughput_ops_per_sec": 105876.1,
+    "speedup_vs_baseline": "1.49x decompose speedup (3.23s -> 2.17s)"
+  }
+}

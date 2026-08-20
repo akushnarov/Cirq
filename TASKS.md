@@ -305,7 +305,7 @@ graph TD
 ---
 
 ### Task 1.9: Eliminate `inspect.signature` in `decompose` DFS & Fast-Path Protocol Lookups `[WAVE 1 - TRACK C1: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: d8b99c94a7802e646329dffa24a6de4bce3ff874)`
 - **Priority**: `P1`
 - **Estimated Effort**: 1-2 days
 - **Concurrency**: **Can run concurrently with Task 1.1 and Task 1.7 (Fully Disjoint Module)**
@@ -313,6 +313,13 @@ graph TD
 - **Target Files**:
   - `cirq-core/cirq/protocols/decompose_protocol.py` (`_decompose_dfs`, `_try_op_decomposer`)
   - `cirq-core/cirq/protocols/unitary_protocol.py` (`unitary`, `has_unitary`)
+  - `cirq-core/cirq/ops/op_tree.py` (`flatten_to_ops`)
+- **Verified Benchmark Speedup**:
+  - `cirq.decompose` Latency (50k SWAPs / 224k ops): **3.230 s $\to$ 2.174 s** (103,309 ops/sec throughput, 1.49x speedup)
+  - `cirq.has_unitary` Latency (100k calls): **0.0576 s** (1,735,130 ops/sec throughput)
+  - `cirq.unitary` Latency (100k calls): **0.9445 s** (105,876 ops/sec throughput)
+  - **Test Suite**: 170/170 passed (100% incremental coverage)
+  - **Tracking Record**: `benchmarks/tracking/task_1_9_d8b99c94a7802e646329dffa24a6de4bce3ff874.json`
 
 #### Execution Workflow:
 1. **Create Feature Branch**:
