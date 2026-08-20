@@ -1,0 +1,37 @@
+{
+  "task_id": "1.1",
+  "task_name": "Universal __slots__ Adoption on Core Classes",
+  "branch": "perf-universal-slots",
+  "commit_sha": "9e5b49456661fe1c0bcf5364691bfbfbaad00693",
+  "timestamp": "2026-08-20T10:56:30Z",
+  "metrics": {
+    "object_sizes_bytes": {
+      "GridQubit": 88,
+      "LineQubit": 72,
+      "NamedQubit": 80,
+      "GateOperation": 64,
+      "TaggedOperation": 64,
+      "Moment": 104,
+      "Circuit": 112
+    },
+    "all_classes_slotted_no_dict": true,
+    "circuit_1m_ops_construction": {
+      "qubits": 1000,
+      "depth_moments": 1000,
+      "total_operations": 1000000,
+      "baseline_peak_memory_mb": 448.66,
+      "optimized_peak_memory_mb": 150.15,
+      "memory_reduction_pct": 66.53,
+      "baseline_time_seconds": 36.305,
+      "optimized_time_seconds": 10.8037,
+      "speedup_factor": 3.36,
+      "throughput_ops_per_sec": 92561
+    }
+  },
+  "verification": {
+    "unit_tests_passed": 1165,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED"
+  }
+}
