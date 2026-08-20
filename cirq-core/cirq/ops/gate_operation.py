@@ -39,6 +39,8 @@ class GateOperation(raw_types.Operation):
     Objects of this type are immutable.
     """
 
+    __slots__ = ('_gate', '_qubits')
+
     def __init__(self, gate: cirq.Gate, qubits: Sequence[cirq.Qid]) -> None:
         """Inits GateOperation.
 

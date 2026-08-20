@@ -30,6 +30,8 @@ if TYPE_CHECKING:
 class _BaseLineQid(ops.Qid):
     """The base class for `LineQid` and `LineQubit`."""
 
+    __slots__ = ('_x', '_dimension', '_hash')
+
     _x: int
     _dimension: int
     _hash: int
@@ -184,6 +186,8 @@ class LineQid(_BaseLineQid):
 
     """
 
+    __slots__ = ()
+
     # Cache of existing LineQid instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
     _cache = weakref.WeakValueDictionary[tuple[int, int], 'cirq.LineQid']()
@@ -215,6 +219,9 @@ class LineQid(_BaseLineQid):
     # avoid pickling the _hash value, attributes are already stored with __getnewargs__
     def __getstate__(self) -> dict[str, Any]:
         return {}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        pass
 
     def _with_x(self, x: int) -> LineQid:
         return LineQid(x, dimension=self._dimension)
@@ -292,7 +299,7 @@ class LineQubit(_BaseLineQid):
 
     """
 
-    _dimension = 2
+    __slots__ = ()
 
     # Cache of existing LineQubit instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
@@ -308,6 +315,7 @@ class LineQubit(_BaseLineQid):
         if inst is None:
             inst = super().__new__(cls)
             inst._x = x
+            inst._dimension = 2
             inst._hash = hash(x)
             cls._cache[x] = inst
         return inst
@@ -319,6 +327,9 @@ class LineQubit(_BaseLineQid):
     # avoid pickling the _hash value, attributes are already stored with __getnewargs__
     def __getstate__(self) -> dict[str, Any]:
         return {}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        pass
 
     def _with_x(self, x: int) -> LineQubit:
         return LineQubit(x)

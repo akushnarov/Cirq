@@ -29,10 +29,12 @@ if TYPE_CHECKING:
 class _BaseNamedQid(raw_types.Qid):
     """The base class for `NamedQid` and `NamedQubit`."""
 
+    __slots__ = ('_name', '_dimension', '_comp_key', '_hash')
+
     _name: str
     _dimension: int
-    _comp_key: str | None = None
-    _hash: int | None = None
+    _comp_key: str | None
+    _hash: int | None
 
     def __hash__(self) -> int:
         if self._hash is None:
@@ -110,6 +112,8 @@ class NamedQid(_BaseNamedQid):
     correctly come before 'qid22'.
     """
 
+    __slots__ = ()
+
     # Cache of existing NamedQid instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
     _cache = weakref.WeakValueDictionary[tuple[str, int], 'cirq.NamedQid']()
@@ -129,6 +133,8 @@ class NamedQid(_BaseNamedQid):
             inst = super().__new__(cls)
             inst._name = name
             inst._dimension = dimension
+            inst._comp_key = None
+            inst._hash = None
             cls._cache[key] = inst
         return inst
 
@@ -139,6 +145,9 @@ class NamedQid(_BaseNamedQid):
     # avoid pickling the _hash value, attributes are already stored with __getnewargs__
     def __getstate__(self) -> dict[str, Any]:
         return {}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        pass
 
     def __repr__(self) -> str:
         return f'cirq.NamedQid({self._name!r}, dimension={self._dimension})'
@@ -183,7 +192,7 @@ class NamedQubit(_BaseNamedQid):
     wire for 'qubit3' will correctly come before 'qubit22'.
     """
 
-    _dimension = 2
+    __slots__ = ()
 
     # Cache of existing NamedQubit instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
@@ -201,6 +210,9 @@ class NamedQubit(_BaseNamedQid):
         if inst is None:
             inst = super().__new__(cls)
             inst._name = name
+            inst._dimension = 2
+            inst._comp_key = None
+            inst._hash = None
             cls._cache[name] = inst
         return inst
 
@@ -211,6 +223,9 @@ class NamedQubit(_BaseNamedQid):
     # avoid pickling the _hash value, attributes are already stored with __getnewargs__
     def __getstate__(self) -> dict[str, Any]:
         return {}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        pass
 
     def __str__(self) -> str:
         return self._name

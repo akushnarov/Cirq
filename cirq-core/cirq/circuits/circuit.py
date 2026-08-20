@@ -135,6 +135,8 @@ class AbstractCircuit(abc.ABC):
     *   get_independent_qubit_sets
     """
 
+    __slots__ = ('__weakref__',)
+
     @classmethod
     def from_moments(
         cls: type[CIRCUIT_TYPE], *moments: cirq.OP_TREE | None, tags: Sequence[Hashable] = ()
@@ -1812,6 +1814,30 @@ class Circuit(AbstractCircuit):
             independent 'factors' of the original Circuit.
     """
 
+    __slots__ = (
+        '_placement_cache',
+        '_moments',
+        '_tags',
+        '_all_qubits',
+        '_frozen',
+        '_is_measurement',
+        '_is_parameterized',
+        '_parameter_names',
+    )
+
+    def __getstate__(self) -> dict[str, Any]:
+        return {'_moments': self._moments, '_tags': self._tags}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self._placement_cache = None
+        self._moments = list(state.get('_moments', []))
+        self._tags = tuple(state.get('_tags', ()))
+        self._all_qubits = None
+        self._frozen = None
+        self._is_measurement = None
+        self._is_parameterized = None
+        self._parameter_names = None
+
     def __init__(
         self,
         *contents: cirq.OP_TREE,
@@ -3168,6 +3194,8 @@ class _PlacementCache:
     cache, then the cache must be invalidated for the circuit or rebuilt from
     scratch. Future improvements may ease this restriction.
     """
+
+    __slots__ = ('_qubit_indices', '_mkey_indices', '_ckey_indices', '_length')
 
     def __init__(self) -> None:
         # These are dicts from the qubit/key to the greatest moment index that has it.

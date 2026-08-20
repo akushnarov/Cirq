@@ -1023,3 +1023,14 @@ def test_moment_with_same_measurement_control_keys() -> None:
     assert cirq.control_keys(m[q1]) == {"k"}
     assert cirq.measurement_key_names(m) == {"k"}
     assert cirq.control_keys(m) == {"k"}
+
+
+def test_moment_pickle() -> None:
+    import pickle
+
+    q0, q1 = cirq.LineQubit.range(2)
+    m = cirq.Moment(cirq.X(q0), cirq.Y(q1), tags=('tag_a', 'tag_b'))
+    data = pickle.dumps(m)
+    m_unpickled = pickle.loads(data)
+    assert m == m_unpickled
+    assert m_unpickled.tags == ('tag_a', 'tag_b')

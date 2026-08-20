@@ -1206,6 +1206,12 @@ class SingleQubitPauliStringGateOperation(  # type: ignore[misc]
     def __rmul__(self, other):
         return PauliString.__rmul__(self, other)
 
+    def __getstate__(self) -> dict[str, Any]:
+        return {'pauli': self.pauli, 'qubit': self.qubit}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__init__(state['pauli'], state['qubit'])
+
     def _json_dict_(self) -> dict[str, Any]:
         return protocols.obj_to_dict_helper(self, ['pauli', 'qubit'])
 

@@ -1057,3 +1057,43 @@ def test_with_methods_return_self_on_empty_conditions(op) -> None:
     assert op is op.with_tags(*[])
     assert op is op.with_classical_controls(*[])
     assert op is op.controlled_by(*[])
+
+
+class _CustomDictQid(cirq.Qid):
+    def __init__(self, key: int):
+        self.key = key
+
+    def _comparison_key(self) -> int:
+        return self.key
+
+    @property
+    def dimension(self) -> int:
+        return 2
+
+
+def test_qid_pickle_with_dict() -> None:
+    import pickle
+
+    q = _CustomDictQid(42)
+    _ = hash(q)
+    data = pickle.dumps(q)
+    q2 = pickle.loads(data)
+    assert q2 == q
+    assert q2.key == 42
+
+    # Test Qid.__getstate__ on slotted qid without __dict__
+    lq = cirq.LineQubit(0)
+    assert cirq.ops.raw_types.Qid.__getstate__(lq) == {}
+
+
+def test_tagged_operation_pickle() -> None:
+    import pickle
+
+    q = cirq.LineQubit(0)
+    top = cirq.X(q).with_tags('t1', 't2')
+    assert top.__getstate__() == {'_sub_operation': cirq.X(q), '_tags': ('t1', 't2')}
+    data = pickle.dumps(top)
+    top2 = pickle.loads(data)
+    assert top2 == top
+    assert top2.tags == ('t1', 't2')
+    assert top2.sub_operation == cirq.X(q)

@@ -542,3 +542,16 @@ def test_gate_to_operation_to_gate_round_trips() -> None:
     assert (
         skipped == skip_classes
     ), "A gate that was supposed to be skipped was not, please update the list of skipped gates."
+
+
+def test_gate_operation_pickle() -> None:
+    import pickle
+
+    q = cirq.LineQubit(0)
+    op = cirq.H(q)
+    assert op.__getstate__() == {'_gate': cirq.H, '_qubits': (q,)}
+    data = pickle.dumps(op)
+    op2 = pickle.loads(data)
+    assert op2 == op
+    assert op2.gate == cirq.H
+    assert op2.qubits == (q,)

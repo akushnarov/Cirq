@@ -256,3 +256,46 @@ def test_bad_manual_cls_forgot_method() -> None:
         class _:
             def _value_equality_values_(self):
                 pass
+
+
+@cirq.value_equality
+class SlottedValueClass:
+    __slots__ = ('x', 'y')
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def _value_equality_values_(self):
+        return (self.x, self.y)
+
+
+@cirq.value_equality
+class SingleSlottedValueClass:
+    __slots__ = 'x'
+
+    def __init__(self, x):
+        self.x = x
+
+    def _value_equality_values_(self):
+        return self.x
+
+
+def test_slotted_value_equality_pickle() -> None:
+    obj = SlottedValueClass(1, 2)
+    assert obj == SlottedValueClass(1, 2)
+    assert obj != SlottedValueClass(1, 3)
+    state = obj.__getstate__()
+    assert state == {'x': 1, 'y': 2}
+
+    single = SingleSlottedValueClass(5)
+    assert single == SingleSlottedValueClass(5)
+    assert single != SingleSlottedValueClass(6)
+    single_state = single.__getstate__()
+    assert single_state == {'x': 5}
+
+    # Dict-based class pickle
+    b = BasicC(10)
+    _ = hash(b)
+    b_state = b.__getstate__()
+    assert 'x' in b_state

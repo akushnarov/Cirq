@@ -1029,3 +1029,23 @@ def test_cached_method():
     assert b.bar_calls == {123: 1, 234: 1}
     assert b.bar(123) == b.bar(123) == (id(b), 123 * 2)
     assert b.bar_calls == {123: 2, 234: 1}
+
+
+def test_cached_method_slotted():
+    class SlottedBar:
+        __slots__ = ('x',)
+
+        def __init__(self, x: int):
+            self.x = x
+
+        @cached_method
+        def foo(self) -> int:
+            return self.x * 2
+
+        @cached_method(maxsize=1)
+        def bar(self, y: int) -> int:
+            return self.x + y
+
+    sb = SlottedBar(5)
+    assert sb.foo() == 10
+    assert sb.bar(3) == 8

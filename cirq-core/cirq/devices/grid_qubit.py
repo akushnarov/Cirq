@@ -32,10 +32,12 @@ if TYPE_CHECKING:
 class _BaseGridQid(ops.Qid):
     """The Base class for `GridQid` and `GridQubit`."""
 
+    __slots__ = ('_row', '_col', '_dimension', '_comp_key', '_hash')
+
     _row: int
     _col: int
     _dimension: int
-    _comp_key: tuple[int, int] | None = None
+    _comp_key: tuple[int, int] | None
     _hash: int
 
     def __hash__(self) -> int:
@@ -212,6 +214,8 @@ class GridQid(_BaseGridQid):
     cirq.GridQid(5, 4, dimension=2)
     """
 
+    __slots__ = ()
+
     # Cache of existing GridQid instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
     _cache = weakref.WeakValueDictionary[tuple[int, int, int], 'cirq.GridQid']()
@@ -234,6 +238,7 @@ class GridQid(_BaseGridQid):
             inst._row = row
             inst._col = col
             inst._dimension = dimension
+            inst._comp_key = None
             inst._hash = ((dimension - 2) * 1_000_003 + hash(col)) * 1_000_003 + hash(row)
             cls._cache[key] = inst
         return inst
@@ -245,6 +250,9 @@ class GridQid(_BaseGridQid):
     # avoid pickling the _hash value, attributes are already stored with __getnewargs_ex__
     def __getstate__(self) -> dict[str, Any]:
         return {}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        pass
 
     def _with_row_col(self, row: int, col: int) -> GridQid:
         return GridQid(row, col, dimension=self._dimension)
@@ -373,7 +381,7 @@ class GridQubit(_BaseGridQid):
     cirq.GridQubit(5, 4)
     """
 
-    _dimension = 2
+    __slots__ = ()
 
     # Cache of existing GridQubit instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
@@ -392,6 +400,8 @@ class GridQubit(_BaseGridQid):
             inst = super().__new__(cls)
             inst._row = row
             inst._col = col
+            inst._dimension = 2
+            inst._comp_key = None
             inst._hash = hash(col) * 1_000_003 + hash(row)
             cls._cache[key] = inst
         return inst
@@ -403,6 +413,9 @@ class GridQubit(_BaseGridQid):
     # avoid pickling the _hash value, attributes are already stored with __getnewargs__
     def __getstate__(self) -> dict[str, Any]:
         return {}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        pass
 
     def _with_row_col(self, row: int, col: int) -> GridQubit:
         return GridQubit(row, col)

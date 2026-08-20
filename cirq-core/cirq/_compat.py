@@ -103,7 +103,10 @@ def cached_method(method: TFunc | None = None, *, maxsize: int = 128) -> Any:
                     return getattr(self, cache_name)
                 except AttributeError:
                     result = func(self)
-                    object.__setattr__(self, cache_name, result)
+                    try:
+                        object.__setattr__(self, cache_name, result)
+                    except AttributeError:
+                        pass
                     return result
 
             return wrapped_no_args
@@ -117,7 +120,10 @@ def cached_method(method: TFunc | None = None, *, maxsize: int = 128) -> Any:
                 def cached_func(*args, **kwargs):
                     return func(self, *args, **kwargs)
 
-                object.__setattr__(self, cache_name, cached_func)
+                try:
+                    object.__setattr__(self, cache_name, cached_func)
+                except AttributeError:
+                    pass
                 cached = cached_func
             return cached(*args, **kwargs)
 

@@ -114,12 +114,30 @@ def _value_equality_approx_eq(
 
 def _value_equality_getstate(self: _SupportsValueEquality) -> dict[str, Any]:
     # clear cached hash value when pickling, see #6674
-    state = self.__dict__
-    hash_attr = _compat._method_cache_name(self.__hash__)
-    if hash_attr in state:
-        state = state.copy()
-        del state[hash_attr]
-    return state
+    if hasattr(self, '__dict__'):
+        state = self.__dict__
+        hash_attr = _compat._method_cache_name(self.__hash__)
+        if hash_attr in state:
+            state = state.copy()
+            del state[hash_attr]
+        return state
+    # Slotted classes without __dict__
+    slots = getattr(self, '__slots__', ())
+    if isinstance(slots, str):
+        slots = (slots,)
+    return {
+        slot: getattr(self, slot)
+        for slot in slots
+        if hasattr(self, slot) and slot != '__weakref__' and not slot.startswith('_method_cache_')
+    }
+
+
+def _value_equality_setstate(self: Any, state: dict[str, Any]) -> None:
+    if hasattr(self, '__dict__'):
+        self.__dict__.update(state)
+    else:
+        for slot, val in state.items():
+            setattr(self, slot, val)
 
 
 @overload
@@ -241,6 +259,7 @@ def value_equality(
     setattr(cls, '__hash__', None if unhashable else _compat.cached_method(_value_equality_hash))
     if not unhashable:
         setattr(cls, '__getstate__', _value_equality_getstate)
+        setattr(cls, '__setstate__', _value_equality_setstate)
     setattr(cls, '__eq__', _value_equality_eq)
     setattr(cls, '__ne__', _value_equality_ne)
 

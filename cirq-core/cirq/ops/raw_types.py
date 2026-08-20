@@ -54,6 +54,8 @@ class Qid(metaclass=abc.ABCMeta):
     comparison, and hashing methods via `_comparison_key`.
     """
 
+    __slots__ = ('__weakref__',)
+
     @abc.abstractmethod
     def _comparison_key(self) -> Any:
         """Returns a value used to sort and compare this qubit with others.
@@ -103,12 +105,18 @@ class Qid(metaclass=abc.ABCMeta):
 
     def __getstate__(self) -> dict[str, Any]:
         # clear cached hash value when pickling, see #6674
-        state = self.__dict__
-        hash_attr = _method_cache_name(self.__hash__)
-        if hash_attr in state:
-            state = state.copy()
-            del state[hash_attr]
-        return state
+        if hasattr(self, '__dict__'):
+            state = self.__dict__
+            hash_attr = _method_cache_name(self.__hash__)
+            if hash_attr in state:
+                state = state.copy()
+                del state[hash_attr]
+            return state
+        return {}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        if hasattr(self, '__dict__'):
+            self.__dict__.update(state)
 
     def __eq__(self, other):
         if not isinstance(other, Qid):
@@ -147,6 +155,8 @@ class Qid(metaclass=abc.ABCMeta):
 
 @functools.total_ordering
 class _QubitAsQid(Qid):
+    __slots__ = ('_qubit', '_dimension')
+
     def __init__(self, qubit: Qid, dimension: int):
         self._qubit = qubit
         self._dimension = dimension
@@ -497,6 +507,8 @@ class Operation(metaclass=abc.ABCMeta):
     effect into a qubit-independent Gate and the qubits it should be applied to.
     """
 
+    __slots__ = ('__weakref__',)
+
     @property
     def gate(self) -> cirq.Gate | None:
         return None
@@ -758,6 +770,8 @@ class TaggedOperation(Operation):
 
     See `Operation.with_tags()` for more information on intended usage.
     """
+
+    __slots__ = ('_sub_operation', '_tags')
 
     def __init__(self, sub_operation: cirq.Operation, *tags: Hashable):
         self._sub_operation = sub_operation

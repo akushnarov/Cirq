@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Callable, Hashable, Iterable, Iterator, Mapping, Sequence, Set
-from functools import cached_property
 from types import NotImplementedType
 from typing import Any, cast, overload, Self, TYPE_CHECKING
 
@@ -66,6 +65,17 @@ class Moment:
             are no such operations, returns an empty Moment.
     """
 
+    __slots__ = (
+        '_operations',
+        '_sorted_operations',
+        '_qubit_to_op',
+        '_qubits',
+        '_measurement_key_objs',
+        '_control_keys',
+        '_tags',
+        '__weakref__',
+    )
+
     def __init__(
         self,
         *contents: cirq.OP_TREE,
@@ -108,9 +118,16 @@ class Moment:
                     raise ValueError(f'Overlapping operations: {self.operations}')
                 self._qubit_to_op[q] = op
 
+        self._qubits: frozenset[cirq.Qid] | None = None
         self._measurement_key_objs: frozenset[cirq.MeasurementKey] | None = None
         self._control_keys: frozenset[cirq.MeasurementKey] | None = None
         self._tags = tags
+
+    def __getstate__(self) -> dict[str, Any]:
+        return {'_operations': self._operations, '_tags': self._tags}
+
+    def __setstate__(self, state: dict[str, Any]) -> None:
+        self.__init__(*state['_operations'], _flatten_contents=False, tags=state.get('_tags', ()))
 
     @classmethod
     def from_ops(cls, *ops: cirq.Operation, tags: tuple[Hashable, ...] = ()) -> cirq.Moment:
@@ -133,9 +150,11 @@ class Moment:
     def operations(self) -> tuple[cirq.Operation, ...]:
         return self._operations
 
-    @cached_property
+    @property
     def qubits(self) -> frozenset[cirq.Qid]:
-        return frozenset(self._qubit_to_op)
+        if self._qubits is None:
+            self._qubits = frozenset(self._qubit_to_op)
+        return self._qubits
 
     @property
     def tags(self) -> tuple[Hashable, ...]:
@@ -394,15 +413,6 @@ class Moment:
     @_compat.cached_method()
     def __hash__(self):
         return hash((Moment, self._sorted_operations_()))
-
-    def __getstate__(self) -> dict[str, Any]:
-        # clear cached hash value when pickling, see #6674
-        state = self.__dict__
-        hash_attr = _compat._method_cache_name(self.__hash__)
-        if hash_attr in state:
-            state = state.copy()
-            del state[hash_attr]
-        return state
 
     def __iter__(self) -> Iterator[cirq.Operation]:
         return iter(self.operations)

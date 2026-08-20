@@ -5169,3 +5169,13 @@ def test_insert_moment_with_same_measurement_control_keys() -> None:
     assert c2 == cirq.Circuit(
         cirq.Moment(cirq.measure(q0, key="k"), cirq.X(q1).with_classical_controls("k"))
     )
+
+
+def test_circuit_pickle() -> None:
+    import pickle
+
+    c = cirq.Circuit(cirq.X(q0), cirq.Y(q1), tags=('tag1', 'tag2'))
+    data = pickle.dumps(c)
+    c_unpickled = pickle.loads(data)
+    assert c == c_unpickled
+    assert c_unpickled.tags == ('tag1', 'tag2')
