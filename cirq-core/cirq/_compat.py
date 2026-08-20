@@ -68,6 +68,9 @@ def with_debug(value: bool) -> Iterator[None]:
 TFunc = TypeVar('TFunc', bound=Callable)
 
 
+_NOT_CACHED = object()
+
+
 @overload
 def cached_method(__func: TFunc) -> TFunc: ...
 
@@ -99,15 +102,15 @@ def cached_method(method: TFunc | None = None, *, maxsize: int = 128) -> Any:
 
             @functools.wraps(func)
             def wrapped_no_args(self):
+                val = getattr(self, cache_name, _NOT_CACHED)
+                if val is not _NOT_CACHED:
+                    return val
+                result = func(self)
                 try:
-                    return getattr(self, cache_name)
+                    object.__setattr__(self, cache_name, result)
                 except AttributeError:
-                    result = func(self)
-                    try:
-                        object.__setattr__(self, cache_name, result)
-                    except AttributeError:
-                        pass
-                    return result
+                    pass
+                return result
 
             return wrapped_no_args
 

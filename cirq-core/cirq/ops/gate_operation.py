@@ -133,16 +133,61 @@ class GateOperation(raw_types.Operation):
     def _group_interchangeable_qubits(
         self,
     ) -> tuple[cirq.Qid | tuple[int, frozenset[cirq.Qid]], ...]:
-        if not isinstance(self.gate, gate_features.InterchangeableQubitsGate):
-            return self.qubits
+        if not isinstance(self._gate, gate_features.InterchangeableQubitsGate):
+            return self._qubits
+        num_qubits = len(self._qubits)
+        if num_qubits == 0:
+            return ()
+        if num_qubits == 1:
+            k = self._gate.qubit_index_to_equivalence_group_key(0)
+            return ((k, frozenset(self._qubits)),)
+        if num_qubits == 2:
+            k0 = self._gate.qubit_index_to_equivalence_group_key(0)
+            k1 = self._gate.qubit_index_to_equivalence_group_key(1)
+            if k0 == k1:
+                return ((k0, frozenset(self._qubits)),)
+            if k0 < k1:
+                return ((k0, frozenset((self._qubits[0],))), (k1, frozenset((self._qubits[1],))))
+            return ((k1, frozenset((self._qubits[1],))), (k0, frozenset((self._qubits[0],))))
         groups: dict[int, list[cirq.Qid]] = {}
-        for i, q in enumerate(self.qubits):
-            k = self.gate.qubit_index_to_equivalence_group_key(i)
+        for i, q in enumerate(self._qubits):
+            k = self._gate.qubit_index_to_equivalence_group_key(i)
             groups.setdefault(k, []).append(q)
-        return tuple(sorted((k, frozenset(v)) for k, v in groups.items()))
+        return tuple((k, frozenset(v)) for k, v in sorted(groups.items()))
 
     def _value_equality_values_(self):
-        return self.gate, self._group_interchangeable_qubits()
+        return self._gate, self._group_interchangeable_qubits()
+
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+        if type(self) is type(other):
+            if (self._gate is other._gate or self._gate == other._gate) and (
+                self._qubits is other._qubits or self._qubits == other._qubits
+            ):
+                return True
+            if isinstance(self._gate, gate_features.InterchangeableQubitsGate) and (
+                self._gate is other._gate or self._gate == other._gate
+            ):
+                if len(self._qubits) == 2 and len(other._qubits) == 2:
+                    k0 = self._gate.qubit_index_to_equivalence_group_key(0)
+                    k1 = self._gate.qubit_index_to_equivalence_group_key(1)
+                    if k0 == k1:
+                        return (
+                            self._qubits[0] == other._qubits[1]
+                            and self._qubits[1] == other._qubits[0]
+                        )
+                return self._group_interchangeable_qubits() == other._group_interchangeable_qubits()
+            return False
+        get_cls_other = getattr(other, '_value_equality_values_cls_', None)
+        if get_cls_other is None:
+            return NotImplemented
+        if self._value_equality_values_cls_() != get_cls_other():
+            return False
+        return self._value_equality_values_() == other._value_equality_values_()
+
+    def __ne__(self, other: Any) -> bool:
+        return not self == other
 
     def _qid_shape_(self):
         return self.gate._qid_shape_()
@@ -356,9 +401,12 @@ class GateOperation(raw_types.Operation):
     ) -> NotImplementedType | bool:
         if not isinstance(other, type(self)):
             return NotImplemented
-        if self._group_interchangeable_qubits() != other._group_interchangeable_qubits():
-            return False
-        return protocols.equal_up_to_global_phase(self.gate, other.gate, atol=atol)
+        if self._qubits != other._qubits:
+            if not isinstance(self._gate, gate_features.InterchangeableQubitsGate):
+                return False
+            if self._group_interchangeable_qubits() != other._group_interchangeable_qubits():
+                return False
+        return protocols.equal_up_to_global_phase(self._gate, other._gate, atol=atol)
 
     def controlled_by(
         self,

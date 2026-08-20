@@ -19,10 +19,8 @@ For example: some gates are reversible, some have known matrices, etc.
 
 from __future__ import annotations
 
-import abc
 
-
-class InterchangeableQubitsGate(metaclass=abc.ABCMeta):
+class InterchangeableQubitsGate:
     """Indicates operations should be equal under some qubit permutations."""
 
     def qubit_index_to_equivalence_group_key(self, index: int) -> int:

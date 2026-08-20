@@ -74,12 +74,12 @@ class _SupportsValueEquality(Protocol):
 def _value_equality_eq(self: _SupportsValueEquality, other: _SupportsValueEquality) -> bool:
     if other is self:
         return True
-    cls_self = self._value_equality_values_cls_()
+    if type(self) is type(other):
+        return self._value_equality_values_() == other._value_equality_values_()
     get_cls_other = getattr(other, '_value_equality_values_cls_', None)
     if get_cls_other is None:
         return NotImplemented
-    cls_other = other._value_equality_values_cls_()
-    if cls_self != cls_other:
+    if self._value_equality_values_cls_() != get_cls_other():
         return False
     return self._value_equality_values_() == other._value_equality_values_()
 
@@ -97,12 +97,16 @@ def _value_equality_approx_eq(
 ) -> bool:
     if other is self:
         return True
-    cls_self = self._value_equality_values_cls_()
+    if type(self) is type(other):
+        return protocols.approx_eq(
+            self._value_equality_approximate_values_(),
+            other._value_equality_approximate_values_(),
+            atol=atol,
+        )
     get_cls_other = getattr(other, '_value_equality_values_cls_', None)
     if get_cls_other is None:
         return NotImplemented
-    cls_other = other._value_equality_values_cls_()
-    if cls_self != cls_other:
+    if self._value_equality_values_cls_() != get_cls_other():
         return False
     # Delegate to cirq.approx_eq for approximate equality comparison.
     return protocols.approx_eq(
@@ -260,8 +264,10 @@ def value_equality(
     if not unhashable:
         setattr(cls, '__getstate__', _value_equality_getstate)
         setattr(cls, '__setstate__', _value_equality_setstate)
-    setattr(cls, '__eq__', _value_equality_eq)
-    setattr(cls, '__ne__', _value_equality_ne)
+    if '__eq__' not in cls.__dict__:
+        setattr(cls, '__eq__', _value_equality_eq)
+    if '__ne__' not in cls.__dict__:
+        setattr(cls, '__ne__', _value_equality_ne)
 
     if approximate:
         if not hasattr(cls, '_value_equality_approximate_values_'):

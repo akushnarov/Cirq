@@ -482,6 +482,50 @@ def test_group_interchangeable_qubits_creates_tuples_with_unique_keys() -> None:
     )
 
 
+def test_group_interchangeable_qubits_edge_cases() -> None:
+    class DummyGate(cirq.Gate, cirq.InterchangeableQubitsGate):
+        def __init__(self, n: int, keys: tuple[int, ...] = ()):
+            self._n = n
+            self._keys = keys
+
+        def num_qubits(self) -> int:
+            return self._n
+
+        def qubit_index_to_equivalence_group_key(self, index: int) -> int:
+            return self._keys[index] if index < len(self._keys) else 0
+
+    # 0 qubits
+    op0 = DummyGate(0).on()
+    assert op0._group_interchangeable_qubits() == ()
+
+    # 1 qubit
+    q0, q1 = cirq.LineQubit.range(2)
+    op1 = DummyGate(1, (5,)).on(q0)
+    assert op1._group_interchangeable_qubits() == ((5, frozenset([q0])),)
+
+    # 2 qubits with k0 < k1
+    op2_asc = DummyGate(2, (1, 2)).on(q0, q1)
+    assert op2_asc._group_interchangeable_qubits() == ((1, frozenset([q0])), (2, frozenset([q1])))
+
+    # 2 qubits with k0 > k1
+    op2_desc = DummyGate(2, (2, 1)).on(q0, q1)
+    assert op2_desc._group_interchangeable_qubits() == ((1, frozenset([q1])), (2, frozenset([q0])))
+
+
+def test_gate_operation_eq_different_value_equality_cls() -> None:
+    @cirq.value_equality
+    class OtherValueObject:
+        def _value_equality_values_(self):
+            return 42
+
+    q = cirq.LineQubit(0)
+    op = cirq.X(q)
+    other = OtherValueObject()
+    assert other._value_equality_values_() == 42
+    assert op != other
+    assert not (op == other)  # noqa: SIM201
+
+
 def test_gate_to_operation_to_gate_round_trips() -> None:
     def all_subclasses(cls):
         return set(cls.__subclasses__()).union(
