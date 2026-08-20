@@ -76,6 +76,8 @@ from cirq.circuits import (
     PointOptimizer as PointOptimizer,
     QasmOutput as QasmOutput,
     TextDiagramDrawer as TextDiagramDrawer,
+    CircuitDag as CircuitDag,
+    Unique as Unique,
 )
 
 from cirq.devices import (

@@ -61,6 +61,8 @@ TestSpec = ModuleJsonTestSpec(
         'ZerosSampler',
     ],
     should_not_be_serialized=[
+        'CircuitDag',
+        'Unique',
         'ClassicalStateSimulator',
         # Heatmaps
         'Heatmap',

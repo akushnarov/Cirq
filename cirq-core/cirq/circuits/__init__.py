@@ -32,3 +32,5 @@ from cirq.circuits.optimization_pass import (
     PointOptimizer as PointOptimizer,
     PointOptimizationSummary as PointOptimizationSummary,
 )
+
+from cirq.circuits.circuit_dag import CircuitDag as CircuitDag, Unique as Unique
