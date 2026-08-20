@@ -425,7 +425,12 @@ graph TD
 ---
 
 ### Task 1.5: Linear-Time $O(N)$ `CircuitDag` Construction `[WAVE 2 - TRACK C2: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 682f5627f9b51401491d582a5d243a16cdd2c3ec)`
+- **Results**:
+  - 10k operations DAG construction: **0.0445 s** (baseline: **25.33 s**, **569x speedup**).
+  - 100x500 random circuit (28,140 ops): **0.1596 s** (baseline: **>120 s**, **>750x speedup**).
+  - 100k operations DAG construction: **0.9867 s** (baseline: **>10 min**, **>600x speedup**).
+  - Frontier DAG construction is transitive-minimal directly, eliminating O(N^2) pairwise comparisons.
 - **Priority**: `P0`
 - **Estimated Effort**: 1-2 days
 - **Concurrency**: **Can run concurrently with Task 1.2 and Task 1.3 (Touches only circuit_dag.py)**

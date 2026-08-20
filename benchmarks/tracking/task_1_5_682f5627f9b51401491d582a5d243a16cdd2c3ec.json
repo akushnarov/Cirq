@@ -1,0 +1,15 @@
+{
+  "task_id": "Task 1.5",
+  "branch": "perf-linear-circuit-dag",
+  "commit_sha": "682f5627f9b51401491d582a5d243a16cdd2c3ec",
+  "timestamp": "2026-08-20T12:51:00Z",
+  "metrics": {
+    "dag_10k_ops_latency_s": 0.0445,
+    "dag_10k_ops_throughput_ops_per_sec": 224719.1,
+    "dag_random_100x500_28k_ops_latency_s": 0.1596,
+    "dag_100k_ops_latency_s": 0.9867,
+    "dag_100k_ops_throughput_ops_per_sec": 101347.9,
+    "baseline_10k_ops_latency_s": 25.33,
+    "speedup_vs_baseline": "569x speedup on 10k ops (25.33s -> 0.0445s)"
+  }
+}
