@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 @value.value_equality
 class IdentityGate(raw_types.Gate):
+    _has_measurement_keys: bool = False
     """A Gate that perform no operation on qubits.
 
     The unitary matrix of this gate is a diagonal matrix with all 1s on the

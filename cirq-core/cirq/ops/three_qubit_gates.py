@@ -200,6 +200,7 @@ class CCZPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate):
 
 @value.value_equality()
 class ThreeQubitDiagonalGate(raw_types.Gate):
+    _has_measurement_keys: bool = False
     r"""A three qubit gate whose unitary is given by a diagonal $8 \times 8$ matrix.
 
     This gate's off-diagonal elements are zero and its on diagonal
@@ -655,6 +656,7 @@ class CCYPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate):
 
 @value.value_equality()
 class CSwapGate(gate_features.InterchangeableQubitsGate, raw_types.Gate):
+    _has_measurement_keys: bool = False
     """A controlled swap gate. The Fredkin gate."""
 
     def qubit_index_to_equivalence_group_key(self, index) -> int:

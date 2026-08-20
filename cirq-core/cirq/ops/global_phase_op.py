@@ -30,6 +30,8 @@ from cirq.ops import control_values as cv, controlled_gate, raw_types
 
 @value.value_equality(approximate=True)
 class GlobalPhaseGate(raw_types.Gate):
+    _has_measurement_keys: bool = False
+
     def __init__(self, coefficient: cirq.TParamValComplex, atol: float = 1e-8) -> None:
         if not isinstance(coefficient, sympy.Basic):
             if abs(1 - abs(coefficient)) > atol:

@@ -601,3 +601,12 @@ def test_gate_operation_pickle() -> None:
     assert op2 == op
     assert op2.gate == cirq.H
     assert op2.qubits == (q,)
+
+
+def test_gate_operation_measurement_keys_fast_path() -> None:
+    q = cirq.LineQubit(0)
+    op = cirq.X(q)
+    assert op._measurement_key_name_() is NotImplemented
+    assert op._measurement_key_names_() == frozenset()
+    assert op._measurement_key_obj_() is NotImplemented
+    assert op._measurement_key_objs_() == frozenset()

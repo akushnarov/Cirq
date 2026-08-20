@@ -33,6 +33,7 @@ from cirq.ops import raw_types
 
 @value.value_equality(approximate=True)
 class PhasedXPowGate(raw_types.Gate):
+    _has_measurement_keys: bool = False
     r"""A gate equivalent to $Z^{-p} X^t Z^{p}$ (in time order).
 
     The unitary matrix of `cirq.PhasedXPowGate(exponent=t, phase_exponent=p)` is:

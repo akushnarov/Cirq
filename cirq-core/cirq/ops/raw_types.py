@@ -189,6 +189,7 @@ class _QubitAsQid(Qid):
 
 
 class Gate(metaclass=value.ABCMetaImplementAnyOneOf):
+    _has_control_keys: bool = False
     """An operation type that can be applied to a collection of qubits.
 
     Gates can be applied to qubits by calling their on() method with

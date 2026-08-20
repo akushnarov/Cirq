@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 # TODO(#3241): support qudits and non-square operators.
 class KrausChannel(raw_types.Gate):
+    _has_measurement_keys: bool = True
     """A generic channel that can record the index of its selected operator.
 
     Args:

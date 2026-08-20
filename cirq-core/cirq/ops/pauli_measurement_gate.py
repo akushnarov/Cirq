@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
 @value.value_equality
 class PauliMeasurementGate(raw_types.Gate):
+    _has_measurement_keys: bool = True
     """A gate that measures a Pauli observable.
 
     PauliMeasurementGate contains a key used to identify results of measurement

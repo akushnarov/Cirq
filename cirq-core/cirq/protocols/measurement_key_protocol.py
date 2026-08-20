@@ -232,6 +232,10 @@ def _measurement_key_names_from_magic_methods(
     return result
 
 
+_EMPTY_KEY_SET: frozenset[cirq.MeasurementKey] = frozenset()
+_EMPTY_STR_SET: frozenset[str] = frozenset()
+
+
 def measurement_key_objs(val: Any) -> frozenset[cirq.MeasurementKey]:
     """Gets the measurement key objects of measurements within the given value.
 
@@ -242,13 +246,15 @@ def measurement_key_objs(val: Any) -> frozenset[cirq.MeasurementKey]:
         The measurement key objects of the value. If the value has no measurement,
         the result is the empty set.
     """
+    if getattr(val, '_has_measurement_keys', None) is False:
+        return _EMPTY_KEY_SET
     result = _measurement_key_objs_from_magic_methods(val)
     if result is not NotImplemented and result is not None:
         return result
     key_strings = _measurement_key_names_from_magic_methods(val)
     if key_strings is not NotImplemented and key_strings is not None:
         return frozenset(value.MeasurementKey.parse_serialized(key_str) for key_str in key_strings)
-    return frozenset()
+    return _EMPTY_KEY_SET
 
 
 def measurement_key_names(val: Any) -> frozenset[str]:
@@ -267,13 +273,15 @@ def measurement_key_names(val: Any) -> frozenset[str]:
         The measurement keys of the value. If the value has no measurement,
         the result is the empty set.
     """
+    if getattr(val, '_has_measurement_keys', None) is False:
+        return _EMPTY_STR_SET
     result = _measurement_key_names_from_magic_methods(val)
     if result is not NotImplemented and result is not None:
         return result
     key_objs = _measurement_key_objs_from_magic_methods(val)
     if key_objs is not NotImplemented and key_objs is not None:
         return frozenset(str(key_obj) for key_obj in key_objs)
-    return frozenset()
+    return _EMPTY_STR_SET
 
 
 def _is_measurement_from_magic_method(val: Any) -> bool | None:
@@ -294,6 +302,8 @@ def is_measurement(val: Any) -> bool:
             don't directly specify their `_is_measurement_` property will be decomposed in
             order to find any measurements keys within the decomposed operations.
     """
+    if getattr(val, '_has_measurement_keys', None) is False:
+        return False
     result = _is_measurement_from_magic_method(val)
     if isinstance(result, bool):
         return result

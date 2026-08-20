@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 @value.value_equality()
 class TwoQubitDiagonalGate(raw_types.Gate):
+    _has_measurement_keys: bool = False
     r"""A two qubit gate whose unitary is a diagonal $4 \times 4$ matrix.
 
     This gate's off-diagonal elements are zero and its on-diagonal

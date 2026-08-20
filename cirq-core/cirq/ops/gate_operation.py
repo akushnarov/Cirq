@@ -52,6 +52,12 @@ class GateOperation(raw_types.Operation):
         self._gate = gate
         self._qubits = tuple(qubits)
 
+    _has_control_keys: bool = False
+
+    @property
+    def _has_measurement_keys(self) -> bool:
+        return getattr(self._gate, '_has_measurement_keys', True)
+
     @property
     def gate(self) -> cirq.Gate:
         """The gate applied by the operation."""
@@ -273,24 +279,32 @@ class GateOperation(raw_types.Operation):
         return NotImplemented
 
     def _measurement_key_name_(self) -> str | None:
+        if getattr(self._gate, '_has_measurement_keys', None) is False:
+            return NotImplemented
         getter = getattr(self.gate, '_measurement_key_name_', None)
         if getter is not None:
             return getter()
         return NotImplemented
 
     def _measurement_key_names_(self) -> frozenset[str] | NotImplementedType | None:
+        if getattr(self._gate, '_has_measurement_keys', None) is False:
+            return frozenset()
         getter = getattr(self.gate, '_measurement_key_names_', None)
         if getter is not None:
             return getter()
         return NotImplemented
 
     def _measurement_key_obj_(self) -> cirq.MeasurementKey | None:
+        if getattr(self._gate, '_has_measurement_keys', None) is False:
+            return NotImplemented
         getter = getattr(self.gate, '_measurement_key_obj_', None)
         if getter is not None:
             return getter()
         return NotImplemented
 
     def _measurement_key_objs_(self) -> frozenset[cirq.MeasurementKey] | NotImplementedType | None:
+        if getattr(self._gate, '_has_measurement_keys', None) is False:
+            return frozenset()
         getter = getattr(self.gate, '_measurement_key_objs_', None)
         if getter is not None:
             return getter()

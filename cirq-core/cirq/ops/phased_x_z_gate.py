@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 @value.value_equality(approximate=True)
 class PhasedXZGate(raw_types.Gate):
+    _has_measurement_keys: bool = False
     r"""A single qubit gate equivalent to the circuit $Z^{-a} X^x Z^{a} Z^z$ (in time order).
 
     The unitary matrix of `cirq.PhasedXZGate(x_exponent=x, z_exponent=z, axis_phase_exponent=a)` is:

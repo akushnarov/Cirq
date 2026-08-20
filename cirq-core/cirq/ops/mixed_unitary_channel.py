@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 
 class MixedUnitaryChannel(raw_types.Gate):
+    _has_measurement_keys: bool = True
     """A generic mixture that can record the index of its selected operator.
 
     This type of object is also referred to as a mixed-unitary channel.

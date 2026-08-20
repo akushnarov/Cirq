@@ -1893,6 +1893,23 @@ class Circuit(AbstractCircuit):
             else:
                 self.append(flattened_contents, strategy=strategy)
 
+    def _rebuild_placement_cache(self) -> _PlacementCache:
+        cache = _PlacementCache()
+        for i, moment in enumerate(self._moments):
+            for q in moment.qubits:
+                cache._qubit_indices[q] = i
+            mkeys = moment._measurement_key_objs_()
+            if mkeys:
+                for k in mkeys:
+                    cache._mkey_indices[k] = i
+            ckeys = moment._control_keys_()
+            if ckeys:
+                for k in ckeys:
+                    cache._ckey_indices[k] = i
+        cache._length = len(self._moments)
+        self._placement_cache = cache
+        return cache
+
     def _mutated(self, *, preserve_placement_cache=False) -> None:
         """Clear cached properties in response to this circuit being mutated."""
         self._all_qubits = None
@@ -2328,6 +2345,9 @@ class Circuit(AbstractCircuit):
         """
         # limit index to 0..len(self._moments), also deal with indices smaller 0
         k = max(min(index if index >= 0 else len(self._moments) + index, len(self._moments)), 0)
+        if strategy is InsertStrategy.EARLIEST and k == len(self._moments):
+            self.append(moment_or_operation_tree, strategy=InsertStrategy.EARLIEST)
+            return len(self._moments)
         if strategy != InsertStrategy.EARLIEST or k != len(self._moments):
             self._placement_cache = None
         mops = list(ops.flatten_to_ops_or_moments(moment_or_operation_tree))
@@ -2663,6 +2683,139 @@ class Circuit(AbstractCircuit):
             moment_or_operation_tree: The moment or operation tree to append.
             strategy: How to pick/create the moment to put operations into.
         """
+        # Fast path 1: Appending a single Moment
+        if isinstance(moment_or_operation_tree, Moment):
+            if self._placement_cache is not None:
+                self._placement_cache.append(moment_or_operation_tree)
+            self._moments.append(moment_or_operation_tree)
+            self._mutated(preserve_placement_cache=True)
+            return
+
+        # Fast path 2: Appending a single Operation
+        if isinstance(moment_or_operation_tree, ops.Operation):
+            if strategy is InsertStrategy.NEW:
+                if self._placement_cache is not None:
+                    self._placement_cache.append(moment_or_operation_tree)
+                self._moments.append(Moment(moment_or_operation_tree))
+                self._mutated(preserve_placement_cache=True)
+                return
+            if strategy is InsertStrategy.EARLIEST:
+                if self._placement_cache is None:
+                    self._rebuild_placement_cache()
+                p = self._placement_cache.append(moment_or_operation_tree)
+                if p == len(self._moments):
+                    self._moments.append(Moment(moment_or_operation_tree))
+                else:
+                    self._moments[p] = self._moments[p].with_operation(moment_or_operation_tree)
+                self._mutated(preserve_placement_cache=True)
+                return
+
+        # Fast path 3: InsertStrategy.NEW with sequence of ops or moments
+        if strategy is InsertStrategy.NEW:
+            flat_items = tuple(ops.flatten_to_ops_or_moments(moment_or_operation_tree))
+            if not flat_items:
+                return
+            if all(isinstance(m, Moment) for m in flat_items):
+                for m in flat_items:
+                    if self._placement_cache is not None:
+                        self._placement_cache.append(m)
+                    self._moments.append(cast(Moment, m))
+            else:
+                for item in flat_items:
+                    if isinstance(item, Moment):
+                        if self._placement_cache is not None:
+                            self._placement_cache.append(item)
+                        self._moments.append(item)
+                    else:
+                        if self._placement_cache is not None:
+                            self._placement_cache.append(item)
+                        self._moments.append(Moment(cast(ops.Operation, item)))
+            self._mutated(preserve_placement_cache=True)
+            return
+
+        # Fast path 4: InsertStrategy.EARLIEST with placement cache
+        if strategy is InsertStrategy.EARLIEST:
+            if self._placement_cache is None:
+                self._rebuild_placement_cache()
+
+            if isinstance(moment_or_operation_tree, (list, tuple)):
+                if not moment_or_operation_tree:
+                    return
+                is_flat = True
+                for item in moment_or_operation_tree:
+                    if not isinstance(item, (ops.Operation, Moment)):
+                        is_flat = False
+                        break
+                flat_items = (
+                    moment_or_operation_tree
+                    if is_flat
+                    else tuple(ops.flatten_to_ops_or_moments(moment_or_operation_tree))
+                )
+            else:
+                flat_items = tuple(ops.flatten_to_ops_or_moments(moment_or_operation_tree))
+                if not flat_items:
+                    return
+
+            placement_cache = self._placement_cache
+            cur_len = len(self._moments)
+
+            # Single item check
+            if len(flat_items) == 1:
+                item = flat_items[0]
+                if isinstance(item, Moment):
+                    placement_cache.append(item)
+                    self._moments.append(item)
+                else:
+                    p = placement_cache.append(item)
+                    if p == cur_len:
+                        self._moments.append(Moment(item))
+                    else:
+                        self._moments[p] = self._moments[p].with_operation(item)
+                self._mutated(preserve_placement_cache=True)
+                return
+
+            # Batch placement for multiple operations / moments:
+            op_lists_by_index: dict[int, list[cirq.Operation]] = {}
+            moments_by_index: dict[int, cirq.Moment] = {}
+            for mop in flat_items:
+                p = placement_cache.append(mop)
+                if isinstance(mop, Moment):
+                    moments_by_index[p] = mop
+                else:
+                    if p in op_lists_by_index:
+                        op_lists_by_index[p].append(mop)
+                    else:
+                        op_lists_by_index[p] = [mop]
+
+            # Fast path: all operations placed in a single moment
+            if len(op_lists_by_index) == 1 and not moments_by_index:
+                p, new_ops = next(iter(op_lists_by_index.items()))
+                if p == cur_len:
+                    self._moments.append(Moment(new_ops))
+                else:
+                    self._moments[p] = self._moments[p].with_operations(new_ops)
+                self._mutated(preserve_placement_cache=True)
+                return
+
+            target_len = placement_cache._length
+            for i in range(target_len):
+                m = moments_by_index.get(i)
+                new_ops = op_lists_by_index.get(i)
+                if i < cur_len:
+                    if new_ops:
+                        self._moments[i] = self._moments[i].with_operations(new_ops)
+                else:
+                    if m is not None:
+                        if new_ops:
+                            self._moments.append(m.with_operations(new_ops))
+                        else:
+                            self._moments.append(m)
+                    elif new_ops:
+                        self._moments.append(Moment(new_ops))
+            self._mutated(preserve_placement_cache=True)
+            return
+
+        # Fallback to insert for other strategies (LATEST, INLINE, NEW_THEN_INLINE)
         self.insert(len(self._moments), moment_or_operation_tree, strategy)
 
     def clear_operations_touching(
@@ -3140,43 +3293,48 @@ def get_earliest_accommodating_moment_index(
         The integer index of the earliest moment that can accommodate the given moment or operation.
     """
     mop_qubits = moment_or_operation.qubits
-    mop_mkeys = protocols.measurement_key_objs(moment_or_operation)
-    mop_ckeys = protocols.control_keys(moment_or_operation)
-
     if isinstance(moment_or_operation, Moment):
         # For consistency with `Circuit.append`, moments always get placed at the end of a circuit.
         if length is not None:
             last_conflict = length - 1
         else:
-            last_conflict = max(
-                [*qubit_indices.values(), *mkey_indices.values(), *ckey_indices.values(), -1]
-            )
-
+            last_conflict = -1
+            if qubit_indices:
+                last_conflict = max(last_conflict, max(qubit_indices.values()))
+            if mkey_indices:
+                last_conflict = max(last_conflict, max(mkey_indices.values()))
+            if ckey_indices:
+                last_conflict = max(last_conflict, max(ckey_indices.values()))
+        mop_mkeys = moment_or_operation._measurement_key_objs_()
+        mop_ckeys = moment_or_operation._control_keys_()
     else:
-        # We start by searching for the `latest_conflict` moment index, which we will increment by
-        # `1` to identify the earliest moment that *does not* conflict with the given operation.
-        # The `latest_conflict` is initialized to `-1` before searching for later conflicting
-        # moments.
         last_conflict = -1
-
-        # Look for the maximum conflict; i.e. a moment that has a qubit the same as one of this op's
-        # qubits, that has a measurement or control key the same as one of this op's measurement
-        # keys, or that has a measurement key the same as one of this op's control keys. (Control
-        # keys alone can commute past each other).
         if mop_qubits:
             for qubit in mop_qubits:
                 idx = qubit_indices.get(qubit, -1)
                 last_conflict = max(last_conflict, idx)
-        if mop_mkeys:
-            for key in mop_mkeys:
-                idx = mkey_indices.get(key, -1)
-                last_conflict = max(last_conflict, idx)
-                idx = ckey_indices.get(key, -1)
-                last_conflict = max(last_conflict, idx)
-        if mop_ckeys:
-            for key in mop_ckeys:
-                idx = mkey_indices.get(key, -1)
-                last_conflict = max(last_conflict, idx)
+
+        if (
+            mkey_indices
+            or ckey_indices
+            or getattr(moment_or_operation, '_has_measurement_keys', None) is not False
+            or getattr(moment_or_operation, '_has_control_keys', None) is not False
+        ):
+            mop_mkeys = protocols.measurement_key_objs(moment_or_operation)
+            mop_ckeys = protocols.control_keys(moment_or_operation)
+            if mop_mkeys:
+                for key in mop_mkeys:
+                    idx = mkey_indices.get(key, -1)
+                    last_conflict = max(last_conflict, idx)
+                    idx = ckey_indices.get(key, -1)
+                    last_conflict = max(last_conflict, idx)
+            if mop_ckeys:
+                for key in mop_ckeys:
+                    idx = mkey_indices.get(key, -1)
+                    last_conflict = max(last_conflict, idx)
+        else:
+            mop_mkeys = None
+            mop_ckeys = None
 
     # The index of the moment to place this moment or operation ("mop") into.
     mop_index = last_conflict + 1
@@ -3238,13 +3396,32 @@ class _PlacementCache:
         Returns:
             The index at which the moment/operation should be placed.
         """
-        # Identify the index of the moment to place this into.
-        index = get_earliest_accommodating_moment_index(
+        qubit_indices = self._qubit_indices
+        mkey_indices = self._mkey_indices
+        ckey_indices = self._ckey_indices
+
+        if type(moment_or_operation) is Moment:
+            mop_index = self._length
+            for qubit in moment_or_operation.qubits:
+                qubit_indices[qubit] = mop_index
+            mkeys = moment_or_operation._measurement_key_objs_()
+            if mkeys:
+                for key in mkeys:
+                    mkey_indices[key] = mop_index
+            ckeys = moment_or_operation._control_keys_()
+            if ckeys:
+                for key in ckeys:
+                    ckey_indices[key] = mop_index
+            self._length = mop_index + 1
+            return mop_index
+
+        mop_index = get_earliest_accommodating_moment_index(
             moment_or_operation,
-            self._qubit_indices,
-            self._mkey_indices,
-            self._ckey_indices,
-            self._length,
+            qubit_indices=qubit_indices,
+            mkey_indices=mkey_indices,
+            ckey_indices=ckey_indices,
+            length=self._length,
         )
-        self._length = max(self._length, index + 1)
-        return index
+        if mop_index >= self._length:
+            self._length = mop_index + 1
+        return mop_index

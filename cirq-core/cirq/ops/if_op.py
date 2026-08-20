@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
 @value.value_equality
 class If(raw_types.Operation):
+    _has_control_keys: bool = True
     """An operation that conditionally executes a sub-operation based on classical conditions.
 
     This operation decomposes into a `cirq.ClassicallyControlledOperation`.

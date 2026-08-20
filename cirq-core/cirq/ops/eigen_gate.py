@@ -51,6 +51,7 @@ EigenComponent = NamedTuple(
 
 @value.value_equality(distinct_child_types=True, approximate=True)
 class EigenGate(raw_types.Gate):
+    _has_measurement_keys: bool = False
     """A gate with a known eigendecomposition.
 
     EigenGate is particularly useful when one wishes for different parts of

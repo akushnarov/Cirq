@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 @value.value_equality
 class MeasurementGate(raw_types.Gate):
+    _has_measurement_keys: bool = True
     """A gate that measures qubits in the computational basis.
 
     The measurement gate contains a key that is used to identify results

@@ -5183,3 +5183,89 @@ def test_circuit_pickle() -> None:
     c_unpickled = pickle.loads(data)
     assert c == c_unpickled
     assert c_unpickled.tags == ('tag1', 'tag2')
+
+
+def test_circuit_append_comprehensive_fast_paths() -> None:
+    q0, q1, q2 = cirq.LineQubit.range(3)
+
+    # 1. Append with InsertStrategy.NEW
+    c = cirq.Circuit()
+    c.append([], strategy=cirq.InsertStrategy.NEW)
+    assert len(c) == 0
+
+    c.append(cirq.X(q0), strategy=cirq.InsertStrategy.NEW)
+    assert len(c) == 1
+    c.append([cirq.Y(q0), cirq.Z(q1)], strategy=cirq.InsertStrategy.NEW)
+    assert len(c) == 3
+    c.append([cirq.Moment(cirq.H(q0)), cirq.Moment(cirq.H(q1))], strategy=cirq.InsertStrategy.NEW)
+    assert len(c) == 5
+    c.append([cirq.Moment(cirq.X(q0)), cirq.Y(q1)], strategy=cirq.InsertStrategy.NEW)
+    assert len(c) == 7
+
+    # 2. Append with InsertStrategy.EARLIEST batching
+    c2 = cirq.Circuit()
+    c2.append([])
+    assert len(c2) == 0
+
+    # Single moment in batch
+    c2.append([cirq.Moment(cirq.X(q0))])
+    assert len(c2) == 1
+    # Single op in batch placing into existing moment
+    c2.append([cirq.Y(q1)])
+    assert len(c2) == 1
+    assert c2[0] == cirq.Moment(cirq.X(q0), cirq.Y(q1))
+
+    # Multiple ops placing into existing moment
+    c3 = cirq.Circuit()
+    c3.append([cirq.X(q0)])
+    c3.append([cirq.Y(q1), cirq.Z(q2)])
+    assert len(c3) == 1
+    assert c3[0] == cirq.Moment(cirq.X(q0), cirq.Y(q1), cirq.Z(q2))
+
+    # Multiple ops across different moments
+    c4 = cirq.Circuit()
+    c4.append([cirq.X(q0), cirq.X(q1)])
+    c4.append([cirq.Y(q0), cirq.Moment(cirq.Z(q2))])
+    assert len(c4) == 3
+
+    # Ops placing into moments requiring empty moment padding
+    c5 = cirq.Circuit(cirq.X(q0), cirq.X(q0))
+    c5.clear_operations_touching([q0], [1])  # clears moment 1, invalidates placement cache
+    c5.append([cirq.Y(q0)])
+    assert len(c5) == 2
+
+    # Rebuilding placement cache with measurements and control keys
+    c6 = cirq.Circuit(
+        cirq.Moment(cirq.measure(q0, key="m")), cirq.Moment(cirq.X(q1).with_classical_controls("m"))
+    )
+    c6.clear_operations_touching([q2], [0])  # invalidates cache
+    cache = c6._rebuild_placement_cache()
+    assert cache._mkey_indices == {cirq.MeasurementKey("m"): 0}
+    assert cache._ckey_indices == {cirq.MeasurementKey("m"): 1}
+    c6.append([cirq.Z(q0)])
+    assert len(c6) == 2
+    c6.append([cirq.measure(q2, key="m")])
+    assert len(c6) == 3
+
+    # Append Moment and op that land on the same new moment
+    c7 = cirq.Circuit(cirq.X(q1))
+    c7.append([cirq.Moment(cirq.X(q0)), cirq.Y(q1)])
+    assert len(c7) == 2
+    assert c7[1] == cirq.Moment(cirq.X(q0), cirq.Y(q1))
+
+
+def test_placement_cache_get_earliest_accommodating_moment_index_direct() -> None:
+    from cirq.circuits.circuit import get_earliest_accommodating_moment_index
+
+    q0, q1 = cirq.LineQubit.range(2)
+    m = cirq.Moment(cirq.measure(q0, key="k"), cirq.X(q1).with_classical_controls("k"))
+
+    # Test with length=None and populated dicts
+    idx = get_earliest_accommodating_moment_index(
+        m,
+        qubit_indices={q0: 1},
+        mkey_indices={cirq.MeasurementKey("k"): 2},
+        ckey_indices={cirq.MeasurementKey("k"): 3},
+        length=None,
+    )
+    assert idx == 4

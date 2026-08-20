@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
 @value.value_equality
 class ClassicallyControlledOperation(raw_types.Operation):
+    _has_control_keys: bool = True
     """Augments existing operations to be conditionally executed.
 
     An operation that is classically controlled is executed iff all conditions
