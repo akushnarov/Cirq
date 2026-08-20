@@ -1,0 +1,35 @@
+{
+  "task_id": "1.4",
+  "task_name": "Fast Layer Append & Placement Cache Hardening",
+  "branch": "perf-fast-append",
+  "commit_sha": "81603a269fe39a08c238928fff218cdcdc6c20f4",
+  "timestamp": "2026-08-20T13:31:00Z",
+  "metrics": {
+    "layerwise_append_2000q_x_1000": {
+      "reference_baseline_s": 31.0,
+      "local_baseline_s": 71.95,
+      "optimized_s": 2.3545,
+      "speedup_vs_local_baseline": 30.56,
+      "speedup_vs_reference_baseline": 13.17,
+      "throughput_ops_per_sec": 849437
+    },
+    "moment_append_2000q_x_1000": {
+      "optimized_s": 0.1521,
+      "throughput_ops_per_sec": 13149243
+    },
+    "optimizations": [
+      "O(1) fast-path append for single Moment and single Operation instances",
+      "Batched layerwise operation placement in Circuit.append grouping non-conflicting ops into single Moment instantiations",
+      "O(1) Moment placement in _PlacementCache bypassing quadratic scans",
+      "Fast-path measurement and control key protocol queries on standard unitary gates (EigenGate, IdentityGate, PhasedXZGate, etc.) avoiding protocol lookups during circuit construction",
+      "Dynamic placement cache reconstruction in _rebuild_placement_cache upon boundary mutation"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 2481,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}

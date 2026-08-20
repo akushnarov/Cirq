@@ -490,7 +490,16 @@ graph TD
 ---
 
 ### Task 1.4: Fast Layer Append & Placement Cache Hardening `[WAVE 3 - TRACK A3: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 81603a269fe39a08c238928fff218cdcdc6c20f4)`
+- **Results**:
+  - Layerwise append ($2,000\\text{ qubits} \\times 1,000\\text{ moments} = 2,000,000\\text{ operations}$) latency: **2.35 s** (local baseline: **71.95 s**, **30.56x speedup**; reference baseline: **31.00 s**, **13.17x speedup**; **849,437 ops/sec** throughput).
+  - Single Moment append ($2,000 \\times 1,000$ operations) latency: **0.152 s** (**13,149,243 ops/sec**).
+  - Implemented $O(1)$ fast-path layer and moment append in `Circuit.append` bypassing quadratic search.
+  - Implemented batched layerwise operation placement in `Circuit.append` combining disjoint operations directly into target moments in a single pass rather than sequentially rebuilding intermediate Moment instances.
+  - Hardened `_PlacementCache` with boundary detection and `_rebuild_placement_cache` upon circuit mutation.
+  - Added `_has_measurement_keys = False` and `_has_control_keys = False` fast-paths on standard built-in unitary gates (`EigenGate`, `IdentityGate`, `PhasedXZGate`, `TwoQubitDiagonalGate`, etc.) eliminating millions of protocol introspection calls.
+  - Unit tests: 2,481 passed (100% incremental line coverage on touched files, 0 regressions).
+  - Tracking Record: `benchmarks/tracking/task_1_4_81603a269fe39a08c238928fff218cdcdc6c20f4.json`.
 - **Priority**: `P0`
 - **Estimated Effort**: 1 day
 - **Concurrency**: **Can run concurrently with Task 1.6 and Task 1.8**
