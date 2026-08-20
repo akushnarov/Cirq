@@ -38,6 +38,22 @@ text_diagram_drawer = LazyLoader(
 )
 
 
+def _flatten_op_tree_to_tuple(contents: Sequence[Any]) -> tuple[cirq.Operation, ...]:
+    """Fast flattening of OP_TREE to a tuple of Operations."""
+    if not contents:
+        return ()
+    if len(contents) == 1:
+        c0 = contents[0]
+        if isinstance(c0, raw_types.Operation):
+            return (c0,)
+        if type(c0) is tuple:
+            return c0
+        if type(c0) is list:
+            return tuple(c0)
+        return tuple(op_tree.flatten_to_ops(contents))
+    return tuple(contents)
+
+
 def _default_breakdown(qid: cirq.Qid) -> tuple[Any, Any]:
     # Attempt to convert into a position on the complex plane.
     try:
@@ -102,23 +118,41 @@ class Moment:
         Raises:
             ValueError: A qubit appears more than once.
         """
-        self._operations = (
-            tuple(op_tree.flatten_to_ops(contents))
-            if _flatten_contents
-            else cast(tuple['cirq.Operation'], contents)
-        )
-        self._sorted_operations: tuple[cirq.Operation, ...] | None = None
+        if not _flatten_contents:
+            self._operations = cast(tuple['cirq.Operation'], contents)
+        else:
+            self._operations = _flatten_op_tree_to_tuple(contents)
 
-        # An internal dictionary to support efficient operation access by qubit.
-        self._qubit_to_op: dict[cirq.Qid, cirq.Operation] = {}
-        for op in self._operations:
-            for q in op.qubits:
-                # Check that operations don't overlap.
-                if q in self._qubit_to_op:
+        n_ops = len(self._operations)
+        if n_ops == 0:
+            self._qubits: frozenset[cirq.Qid] | None = frozenset()
+        elif n_ops == 1:
+            op0 = self._operations[0]
+            if not isinstance(op0, raw_types.Operation):
+                self._operations = tuple(op_tree.flatten_to_ops(contents))
+                qubit_list = [q for op in self._operations for q in op.qubits]
+                self._qubits = frozenset(qubit_list)
+                if len(self._qubits) != len(qubit_list):
                     raise ValueError(f'Overlapping operations: {self.operations}')
-                self._qubit_to_op[q] = op
+            else:
+                self._qubits = frozenset(op0.qubits)
+                if len(self._qubits) != len(op0.qubits):
+                    raise ValueError(f'Overlapping operations: {self.operations}')
+        else:
+            try:
+                qubit_list = [q for op in self._operations for q in op.qubits]
+                self._qubits = frozenset(qubit_list)
+                if len(self._qubits) != len(qubit_list):
+                    raise ValueError(f'Overlapping operations: {self.operations}')
+            except (AttributeError, TypeError):
+                self._operations = tuple(op_tree.flatten_to_ops(contents))
+                qubit_list = [q for op in self._operations for q in op.qubits]
+                self._qubits = frozenset(qubit_list)
+                if len(self._qubits) != len(qubit_list):
+                    raise ValueError(f'Overlapping operations: {self.operations}')
 
-        self._qubits: frozenset[cirq.Qid] | None = None
+        self._sorted_operations: tuple[cirq.Operation, ...] | None = None
+        self._qubit_to_op: dict[cirq.Qid, cirq.Operation] | None = None
         self._measurement_key_objs: frozenset[cirq.MeasurementKey] | None = None
         self._control_keys: frozenset[cirq.MeasurementKey] | None = None
         self._tags = tags
@@ -153,8 +187,19 @@ class Moment:
     @property
     def qubits(self) -> frozenset[cirq.Qid]:
         if self._qubits is None:
-            self._qubits = frozenset(self._qubit_to_op)
+            self._qubits = frozenset(q for op in self._operations for q in op.qubits)
         return self._qubits
+
+    def _qubit_to_op_dict(self) -> dict[cirq.Qid, cirq.Operation]:
+        if self._qubit_to_op is None:
+            self._qubit_to_op = {q: op for op in self._operations for q in op.qubits}
+        return self._qubit_to_op
+
+    def _qubits_and_operations(self) -> Iterator[tuple[cirq.Qid, cirq.Operation]]:
+        """Yields pairs of (qubit, operation) for all operations in the moment."""
+        for op in self._operations:
+            for q in op.qubits:
+                yield q, op
 
     @property
     def tags(self) -> tuple[Hashable, ...]:
@@ -191,7 +236,7 @@ class Moment:
         Returns:
             Whether this moment has operations involving the qubit.
         """
-        return qubit in self._qubit_to_op
+        return qubit in self.qubits
 
     def operates_on(self, qubits: Iterable[cirq.Qid]) -> bool:
         """Determines if the moment has operations touching the given qubits.
@@ -202,7 +247,28 @@ class Moment:
         Returns:
             Whether this moment has operations involving the qubits.
         """
-        return not self._qubit_to_op.keys().isdisjoint(qubits)
+        if not self._operations:
+            return False
+        if type(qubits) is tuple or type(qubits) is list:
+            n = len(qubits)
+            if n == 1:
+                return qubits[0] in self.qubits
+            if n == 2:
+                return qubits[0] in self.qubits or qubits[1] in self.qubits
+            if n == 0:
+                return False
+        return not self.qubits.isdisjoint(qubits)
+
+    def can_add(self, operation: cirq.Operation) -> bool:
+        """Determines if the given operation can be added to this moment without qubit overlap.
+
+        Args:
+            operation: The operation to check.
+
+        Returns:
+            True if the operation does not overlap with any operations currently in the moment.
+        """
+        return not self.operates_on(operation.qubits)
 
     def operation_at(self, qubit: raw_types.Qid) -> cirq.Operation | None:
         """Returns the operation on a certain qubit for the moment.
@@ -214,8 +280,8 @@ class Moment:
         Returns:
             The operation that operates on the qubit for that moment.
         """
-        if self.operates_on([qubit]):
-            return self.__getitem__(qubit)
+        if qubit in self.qubits:
+            return self._qubit_to_op_dict()[qubit]
         return None
 
     def with_operation(self, operation: cirq.Operation) -> cirq.Moment:
@@ -232,19 +298,22 @@ class Moment:
         Raises:
             ValueError: If the operation given overlaps a current operation in the moment.
         """
-        if any(q in self._qubit_to_op for q in operation.qubits):
+        if self.operates_on(operation.qubits):
             raise ValueError(f'Overlapping operations: {operation}')
 
         # Use private variables to facilitate a quick copy.
         m = Moment(_flatten_contents=False)
         m._operations = (*self._operations, operation)
         m._sorted_operations = None
-        m._qubit_to_op = {**self._qubit_to_op, **dict.fromkeys(operation.qubits, operation)}
+        m._qubits = self.qubits.union(operation.qubits)
+        m._qubit_to_op = None
 
-        m._measurement_key_objs = self._measurement_key_objs_().union(
-            protocols.measurement_key_objs(operation)
-        )
-        m._control_keys = self._control_keys_().union(protocols.control_keys(operation))
+        if self._measurement_key_objs is not None:
+            m._measurement_key_objs = self._measurement_key_objs.union(
+                protocols.measurement_key_objs(operation)
+            )
+        if self._control_keys is not None:
+            m._control_keys = self._control_keys.union(protocols.control_keys(operation))
 
         return m
 
@@ -263,28 +332,36 @@ class Moment:
         Raises:
             ValueError: If the contents given overlaps a current operation in the moment.
         """
-        flattened_contents = tuple(op_tree.flatten_to_ops(contents))
+        flattened_contents = _flatten_op_tree_to_tuple(contents)
 
         if not flattened_contents:
             return self
 
-        m = Moment(_flatten_contents=False)
-        # Use private variables to facilitate a quick copy.
-        m._qubit_to_op = self._qubit_to_op.copy()
-        for op in flattened_contents:
-            if any(q in m._qubit_to_op for q in op.qubits):
-                raise ValueError(f'Overlapping operations: {op}')
-            for q in op.qubits:
-                m._qubit_to_op[q] = op
+        try:
+            new_qubits_list = [q for op in flattened_contents for q in op.qubits]
+        except (AttributeError, TypeError):
+            flattened_contents = tuple(op_tree.flatten_to_ops(contents))
+            new_qubits_list = [q for op in flattened_contents for q in op.qubits]
+        new_qubits = frozenset(new_qubits_list)
+        if len(new_qubits) != len(new_qubits_list) or not self.qubits.isdisjoint(new_qubits):
+            for op in flattened_contents:
+                if any(q in self.qubits for q in op.qubits):
+                    raise ValueError(f'Overlapping operations: {op}')
+            raise ValueError('Overlapping operations in contents')
 
+        m = Moment(_flatten_contents=False)
         m._operations = self._operations + flattened_contents
         m._sorted_operations = None
-        m._measurement_key_objs = self._measurement_key_objs_().union(
-            itertools.chain(*(protocols.measurement_key_objs(op) for op in flattened_contents))
-        )
-        m._control_keys = self._control_keys_().union(
-            itertools.chain(*(protocols.control_keys(op) for op in flattened_contents))
-        )
+        m._qubits = self.qubits.union(new_qubits)
+        m._qubit_to_op = None
+        if self._measurement_key_objs is not None:
+            m._measurement_key_objs = self._measurement_key_objs.union(
+                itertools.chain(*(protocols.measurement_key_objs(op) for op in flattened_contents))
+            )
+        if self._control_keys is not None:
+            m._control_keys = self._control_keys.union(
+                itertools.chain(*(protocols.control_keys(op) for op in flattened_contents))
+            )
 
         return m
 
@@ -304,7 +381,8 @@ class Moment:
         if not self.operates_on(qubits):
             return self
         return Moment(
-            operation for operation in self.operations if qubits.isdisjoint(operation.qubits)
+            (operation for operation in self.operations if qubits.isdisjoint(operation.qubits)),
+            _flatten_contents=False,
         )
 
     @_compat.cached_method()
@@ -486,9 +564,7 @@ class Moment:
     @_compat.cached_method()
     def _has_kraus_(self) -> bool:
         """Returns True if self has a Kraus representation and self uses <= 10 qubits."""
-        return (
-            all(protocols.has_kraus(op) for op in self.operations) and len(self._qubit_to_op) <= 10
-        )
+        return all(protocols.has_kraus(op) for op in self.operations) and len(self.qubits) <= 10
 
     def _kraus_(self) -> Sequence[np.ndarray]:
         r"""Returns Kraus representation of self.
@@ -513,7 +589,7 @@ class Moment:
         if not self._has_kraus_():
             return NotImplemented
 
-        qubits = sorted(self._qubit_to_op)
+        qubits = sorted(self.qubits)
         n = len(qubits)
         if n < 1:
             return (np.array([[1 + 0j]]),)
@@ -597,16 +673,17 @@ class Moment:
 
     def __getitem__(self, key):
         if isinstance(key, raw_types.Qid):
-            if key not in self._qubit_to_op:
+            if key not in self.qubits:
                 raise KeyError("Moment doesn't act on given qubit")
-            return self._qubit_to_op[key]
+            return self._qubit_to_op_dict()[key]
         elif isinstance(key, Iterable):
             qubits_to_keep = frozenset(key)
-            ops_to_keep = []
-            for q in qubits_to_keep:
-                if q in self._qubit_to_op:
-                    ops_to_keep.append(self._qubit_to_op[q])
-            return Moment(frozenset(ops_to_keep))
+            if not qubits_to_keep or self.qubits.isdisjoint(qubits_to_keep):
+                return Moment()
+            return Moment(
+                (op for op in self._operations if not qubits_to_keep.isdisjoint(op.qubits)),
+                _flatten_contents=False,
+            )
 
     def to_text_diagram(
         self: cirq.Moment,
@@ -643,7 +720,7 @@ class Moment:
         """
 
         # Figure out where to place everything.
-        qs = self._qubit_to_op.keys() | set(extra_qubits)
+        qs = self.qubits | set(extra_qubits)
         points = {xy_breakdown_func(q) for q in qs}
         x_keys = sorted({pt[0] for pt in points}, key=_SortByValFallbackToType)
         y_keys = sorted({pt[1] for pt in points}, key=_SortByValFallbackToType)

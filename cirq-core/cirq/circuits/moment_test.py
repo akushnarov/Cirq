@@ -121,6 +121,57 @@ def test_operates_on_single_qubit() -> None:
     assert not cirq.Moment([cirq.X(a), cirq.X(b)]).operates_on_single_qubit(c)
 
 
+def test_can_add() -> None:
+    a, b, c = cirq.LineQubit.range(3)
+    m = cirq.Moment(cirq.X(a))
+    assert m.can_add(cirq.X(b))
+    assert not m.can_add(cirq.X(a))
+    assert not m.can_add(cirq.CZ(a, c))
+    assert m.can_add(cirq.CZ(b, c))
+
+
+def test_qubits_and_operations() -> None:
+    a, b, c = cirq.LineQubit.range(3)
+    m = cirq.Moment([cirq.X(a), cirq.CZ(b, c)])
+    pairs = list(m._qubits_and_operations())
+    assert pairs == [(a, cirq.X(a)), (b, cirq.CZ(b, c)), (c, cirq.CZ(b, c))]
+
+
+def test_moment_init_formats() -> None:
+    a, b = cirq.LineQubit.range(2)
+    # Tuple of ops
+    m1 = cirq.Moment((cirq.X(a), cirq.Y(b)))
+    assert len(m1) == 2
+    # Nested lists
+    m2 = cirq.Moment([cirq.X(a), [cirq.Y(b)]])
+    assert m2 == m1
+    # Generator
+    m3 = cirq.Moment(cirq.X(q) for q in [a, b])
+    assert len(m3) == 2
+
+    # Single op with duplicate qubits
+    class BadOp(cirq.Operation):
+        @property
+        def qubits(self):
+            return (a, a)
+
+        def with_qubits(self, *new_qubits):
+            return self  # pragma: no cover
+
+    with pytest.raises(ValueError, match='Overlap'):
+        _ = cirq.Moment(BadOp())
+    with pytest.raises(ValueError, match='Overlap'):
+        _ = cirq.Moment([cirq.X(a), [cirq.Y(a)]])
+    with pytest.raises(ValueError, match='Overlap'):
+        _ = cirq.Moment([[[cirq.X(a), cirq.X(a)]]])
+
+    # Test lazy qubits computation if unset
+    m_raw = cirq.Moment.__new__(cirq.Moment)
+    m_raw._operations = (cirq.X(a),)
+    m_raw._qubits = None
+    assert m_raw.qubits == frozenset([a])
+
+
 def test_operates_on() -> None:
     a = cirq.NamedQubit('a')
     b = cirq.NamedQubit('b')

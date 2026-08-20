@@ -2188,7 +2188,7 @@ class Circuit(AbstractCircuit):
         if not 0 <= moment_index < len(self._moments):
             return True
 
-        if self._moments[moment_index].operates_on(operation.qubits):
+        if not self._moments[moment_index].can_add(operation):
             return False
 
         op_measurement_keys = protocols.measurement_key_objs(operation)
@@ -3152,17 +3152,21 @@ def get_earliest_accommodating_moment_index(
         # Look for the maximum conflict; i.e. a moment that has a qubit the same as one of this op's
         # qubits, that has a measurement or control key the same as one of this op's measurement
         # keys, or that has a measurement key the same as one of this op's control keys. (Control
-        # keys alone can commute past each other). The `ifs` are logically unnecessary but seem to
-        # make this slightly faster.
+        # keys alone can commute past each other).
         if mop_qubits:
-            last_conflict = max(
-                last_conflict, *[qubit_indices.get(qubit, -1) for qubit in mop_qubits]
-            )
+            for qubit in mop_qubits:
+                idx = qubit_indices.get(qubit, -1)
+                last_conflict = max(last_conflict, idx)
         if mop_mkeys:
-            last_conflict = max(last_conflict, *[mkey_indices.get(key, -1) for key in mop_mkeys])
-            last_conflict = max(last_conflict, *[ckey_indices.get(key, -1) for key in mop_mkeys])
+            for key in mop_mkeys:
+                idx = mkey_indices.get(key, -1)
+                last_conflict = max(last_conflict, idx)
+                idx = ckey_indices.get(key, -1)
+                last_conflict = max(last_conflict, idx)
         if mop_ckeys:
-            last_conflict = max(last_conflict, *[mkey_indices.get(key, -1) for key in mop_ckeys])
+            for key in mop_ckeys:
+                idx = mkey_indices.get(key, -1)
+                last_conflict = max(last_conflict, idx)
 
     # The index of the moment to place this moment or operation ("mop") into.
     mop_index = last_conflict + 1
@@ -3171,12 +3175,16 @@ def get_earliest_accommodating_moment_index(
     # than the existing value for qubits and measurement keys, by construction.
     for qubit in mop_qubits:
         qubit_indices[qubit] = mop_index
-    for key in mop_mkeys:
-        mkey_indices[key] = mop_index
+    if mop_mkeys:
+        for key in mop_mkeys:
+            mkey_indices[key] = mop_index
     # For control keys, keep the maximum moment index seen so far because ops with the same control
     # keys can commute past each other.
-    for key in mop_ckeys:
-        ckey_indices[key] = max(mop_index, ckey_indices.get(key, -1))
+    if mop_ckeys:
+        for key in mop_ckeys:
+            prev = ckey_indices.get(key, -1)
+            if mop_index > prev:
+                ckey_indices[key] = mop_index
 
     return mop_index
 
