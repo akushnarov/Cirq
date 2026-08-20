@@ -1,0 +1,38 @@
+{
+  "task_id": "1.10",
+  "task_name": "Vectorized Surface Code & QEC Generator",
+  "branch": "perf-vectorized-qec",
+  "commit_sha": "50bf2d73f2780e816cefa61f00889bf7199c71c4",
+  "timestamp": "2026-08-20T13:49:00Z",
+  "metrics": {
+    "surface_code_construction_d31_t31": {
+      "unrolled_latency_ms": 26.99,
+      "subcircuit_latency_ms": 47.528,
+      "total_qubits": 1921,
+      "data_qubits": 961,
+      "measure_qubits": 960
+    },
+    "surface_code_scaling_subcircuit_10k_rounds": {
+      "d3_17q_mem_mb": 0.031,
+      "d5_49q_mem_mb": 0.086,
+      "d7_97q_mem_mb": 0.174,
+      "d9_161q_mem_mb": 0.288,
+      "d15_449q_mem_mb": 0.756,
+      "d21_881q_mem_mb": 1.59,
+      "d31_1921q_mem_mb": 3.645
+    },
+    "optimizations": [
+      "Vectorized SurfaceCodePatch coordinate and stabilizer schedule generation avoiding nested set allocations",
+      "Compressed O(1) memory subcircuit representation via CircuitOperation with use_repetition_ids=False",
+      "Cached CircuitOperation.qubits property avoiding repeated QubitOrder sorting",
+      "Inlined integer coordinate comparisons in _BaseGridQid ordering operators (__lt__, __le__, __ge__, __gt__)"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 1014,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}

@@ -651,7 +651,16 @@ graph TD
 ---
 
 ### Task 1.10: Vectorized Surface Code & QEC Generator `[WAVE 4 - TRACK D: SYNTHESIS]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 50bf2d73f2780e816cefa61f00889bf7199c71c4)`
+- **Results**:
+  - $d=31, T=31$ surface code ($1,921\text{ qubits}$) construction latency: **26.99 ms** (unrolled) and **47.53 ms** (compressed subcircuit).
+  - $d=31, T=10,000$ error correction rounds peak memory: **3.645 MB** ($O(1)$ memory representation via `CircuitOperation` with `use_repetition_ids=False`).
+  - Scaling across code distances $d \in [3, 5, 7, 9, 15, 21, 31]$: $d=3$ in **0.345 ms**, $d=5$ in **0.785 ms**, $d=7$ in **1.329 ms**, $d=15$ in **6.098 ms**.
+  - Vectorized `SurfaceCodePatch` layout and `rotated_surface_code_cycle` generator in `cirq.experiments.surface_code`.
+  - Inlined integer coordinate comparisons in `_BaseGridQid` ordering operators.
+  - Cached `CircuitOperation.qubits` property.
+  - Unit tests: 1,014 passed (100% incremental line coverage on touched files, 0 regressions).
+  - Tracking Record: `benchmarks/tracking/task_1_10_50bf2d73f2780e816cefa61f00889bf7199c71c4.json`.
 - **Priority**: `P1`
 - **Estimated Effort**: 1-2 days
 - **Concurrency**: Final Phase 1 Synthesis Task
