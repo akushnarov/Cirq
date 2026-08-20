@@ -90,3 +90,9 @@ from cirq.experiments.z_phase_calibration import (
     z_phase_calibration_workflow as z_phase_calibration_workflow,
     calibrate_z_phases as calibrate_z_phases,
 )
+
+from cirq.experiments.surface_code import (
+    SurfaceCodePatch as SurfaceCodePatch,
+    rotated_surface_code_cycle as rotated_surface_code_cycle,
+    generate_rotated_surface_code_circuit as generate_rotated_surface_code_circuit,
+)

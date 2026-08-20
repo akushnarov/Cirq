@@ -66,29 +66,41 @@ class _BaseGridQid(ops.Qid):
     def __lt__(self, other) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
-            k0, k1 = self._comparison_key(), other._comparison_key()
-            return k0 < k1 or (k0 == k1 and self._dimension < other._dimension)
+            if self._row != other._row:
+                return self._row < other._row
+            if self._col != other._col:
+                return self._col < other._col
+            return self._dimension < other._dimension
         return super().__lt__(other)
 
     def __le__(self, other) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
-            k0, k1 = self._comparison_key(), other._comparison_key()
-            return k0 < k1 or (k0 == k1 and self._dimension <= other._dimension)
+            if self._row != other._row:
+                return self._row < other._row
+            if self._col != other._col:
+                return self._col < other._col
+            return self._dimension <= other._dimension
         return super().__le__(other)
 
     def __ge__(self, other) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
-            k0, k1 = self._comparison_key(), other._comparison_key()
-            return k0 > k1 or (k0 == k1 and self._dimension >= other._dimension)
+            if self._row != other._row:
+                return self._row > other._row
+            if self._col != other._col:
+                return self._col > other._col
+            return self._dimension >= other._dimension
         return super().__ge__(other)
 
     def __gt__(self, other) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
-            k0, k1 = self._comparison_key(), other._comparison_key()
-            return k0 > k1 or (k0 == k1 and self._dimension > other._dimension)
+            if self._row != other._row:
+                return self._row > other._row
+            if self._col != other._col:
+                return self._col > other._col
+            return self._dimension > other._dimension
         return super().__gt__(other)
 
     def _comparison_key(self):

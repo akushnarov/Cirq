@@ -282,7 +282,7 @@ class CircuitOperation(ops.Operation):
 
     # Methods for getting post-mapping properties of the contained circuit.
 
-    @property
+    @cached_property
     def qubits(self) -> tuple[cirq.Qid, ...]:
         """Returns the qubits operated on by this object."""
         ordered_qubits = ops.QubitOrder.DEFAULT.order_for(self.circuit.all_qubits())
