@@ -84,6 +84,9 @@ def flatten_to_ops(root: OP_TREE) -> Iterator[Operation]:
     """
     if isinstance(root, Operation):
         yield root
+    elif isinstance(root, (list, tuple)):
+        for subtree in root:
+            yield from flatten_to_ops(subtree)
     elif isinstance(root, Iterable) and not isinstance(root, str):
         for subtree in root:
             yield from flatten_to_ops(subtree)
@@ -105,6 +108,9 @@ def flatten_to_ops_or_moments(root: OP_TREE) -> Iterator[Operation | cirq.Moment
     """
     if isinstance(root, (Operation, moment.Moment)):
         yield root
+    elif isinstance(root, (list, tuple)):
+        for subtree in root:
+            yield from flatten_to_ops_or_moments(subtree)
     elif isinstance(root, Iterable) and not isinstance(root, str):
         for subtree in root:
             yield from flatten_to_ops_or_moments(subtree)

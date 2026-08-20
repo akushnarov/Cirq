@@ -498,3 +498,29 @@ def test_handling_of_none_vs_notimplemented_return_values() -> None:
     assert op.called_decompose_with_context, 'Should always call _decompose_with_context_'
     assert op.called_decompose, 'Should fall back to _decompose_'
     assert result == 'placeholder'
+
+
+def test_decomposer_accepts_context_caching_and_flags() -> None:
+    q = cirq.LineQubit(0)
+    op = cirq.X(q)
+
+    # Decomposer with explicit _accepts_context attribute = True
+    def custom_decomp_with_flag(operation, context=None):
+        if operation == op:
+            return [cirq.Y(operation.qubits[0])]
+        return None
+
+    setattr(custom_decomp_with_flag, '_accepts_context', True)
+    assert cirq.decompose(op, intercepting_decomposer=custom_decomp_with_flag) == [cirq.Y(q)]
+
+    # Decomposer with explicit _accepts_context attribute = False
+    def custom_decomp_no_context(operation):
+        if operation == op:
+            return [cirq.Z(operation.qubits[0])]
+        return None
+
+    setattr(custom_decomp_no_context, '_accepts_context', False)
+    assert cirq.decompose(op, intercepting_decomposer=custom_decomp_no_context) == [cirq.Z(q)]
+
+    # Decomposer where inspect.signature raises TypeError (e.g. non-callable object)
+    assert cirq.protocols.decompose_protocol._decomposer_accepts_context(object()) is False

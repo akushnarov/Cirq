@@ -114,16 +114,24 @@ def unitary(
     if isinstance(val, np.ndarray):
         return val
 
-    strats = [
-        _strat_unitary_from_unitary,
-        _strat_unitary_from_apply_unitary,
-        _strat_unitary_from_decompose,
-    ]
-    for strat in strats:
-        result = strat(val)
-        if result is None:
-            break
-        if result is not NotImplemented:
+    # Fast path: try _unitary_ method first without list allocation.
+    getter = getattr(val, '_unitary_', None)
+    if getter is not None:
+        result = getter()
+        if result is not NotImplemented and result is not None:
+            return result
+    else:
+        result = NotImplemented
+
+    # Fallback strategies: _apply_unitary_, then _decompose_
+    if result is not None:
+        result = _strat_unitary_from_apply_unitary(val)
+        if result is not NotImplemented and result is not None:
+            return result
+
+    if result is not None:
+        result = _strat_unitary_from_decompose(val)
+        if result is not NotImplemented and result is not None:
             return result
 
     if default is not RaiseTypeErrorIfNotProvided:

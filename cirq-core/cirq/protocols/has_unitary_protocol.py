@@ -92,18 +92,40 @@ def has_unitary(val: Any, *, allow_decompose: bool = True) -> bool:
     Returns:
         Whether or not `val` has a unitary effect.
     """
-    strats = [
-        _strat_has_unitary_from_has_unitary,
-        _strat_has_unitary_from_decompose,
-        _strat_has_unitary_from_apply_unitary,
-        _strat_has_unitary_from_unitary,
-    ]
+    if isinstance(val, np.ndarray):
+        return linalg.is_unitary(val)
+
+    # Fast path 1: _has_unitary_
+    getter = getattr(val, '_has_unitary_', None)
+    if getter is not None:
+        result = getter()
+        if result is not NotImplemented:
+            return bool(result)
+
+    # Fast path 2: if allow_decompose is False, check _apply_unitary_ and _unitary_
     if not allow_decompose:
-        strats.remove(_strat_has_unitary_from_decompose)
-    for strat in strats:
-        result = strat(val)
-        if result is not None:
-            return result
+        res = _strat_has_unitary_from_apply_unitary(val)
+        if res is not None:
+            return res
+        res = _strat_has_unitary_from_unitary(val)
+        if res is not None:
+            return res
+        return False
+
+    # Strategy 2: decompose
+    res = _strat_has_unitary_from_decompose(val)
+    if res is not None:
+        return res
+
+    # Strategy 3: apply_unitary
+    res = _strat_has_unitary_from_apply_unitary(val)
+    if res is not None:
+        return res
+
+    # Strategy 4: unitary
+    res = _strat_has_unitary_from_unitary(val)
+    if res is not None:
+        return res
 
     # If you can't tell that it's unitary, it's not unitary.
     return False

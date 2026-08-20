@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 import inspect
 import itertools
 from collections import defaultdict
@@ -152,12 +153,23 @@ class SupportsDecomposeWithQubits(Protocol):
         pass
 
 
+@functools.lru_cache(maxsize=1024)
+def _decomposer_accepts_context(decomposer: Any) -> bool:
+    flag = getattr(decomposer, '_accepts_context', None)
+    if flag is not None:
+        return bool(flag)
+    try:
+        return 'context' in inspect.signature(decomposer).parameters
+    except (ValueError, TypeError):
+        return False
+
+
 def _try_op_decomposer(
     val: Any, decomposer: OpDecomposer | None, *, context: DecompositionContext
 ) -> DecomposeResult:
     if decomposer is None or not isinstance(val, ops.Operation):
         return None
-    if 'context' in inspect.signature(decomposer).parameters:
+    if _decomposer_accepts_context(decomposer):
         return decomposer(val, context=context)  # type: ignore[call-arg]
     return decomposer(val)  # type: ignore[call-arg]
 
@@ -173,28 +185,36 @@ class _DecomposeArgs:
 
 
 def _decompose_dfs(item: Any, args: _DecomposeArgs) -> Iterator[cirq.Operation]:
-    from cirq.circuits import CircuitOperation, FrozenCircuit
-
     if isinstance(item, ops.Operation):
-        item_untagged = item.untagged
-        if args.preserve_structure and isinstance(item_untagged, CircuitOperation):
-            new_fc = FrozenCircuit(_decompose_dfs(item_untagged.circuit, args))
-            yield item_untagged.replace(circuit=new_fc).with_tags(*item.tags)
-            return
+        if args.preserve_structure:
+            from cirq.circuits import CircuitOperation, FrozenCircuit
+
+            item_untagged = item.untagged
+            if isinstance(item_untagged, CircuitOperation):
+                new_fc = FrozenCircuit(_decompose_dfs(item_untagged.circuit, args))
+                yield item_untagged.replace(circuit=new_fc).with_tags(*item.tags)
+                return
         if args.keep is not None and args.keep(item):
             yield item
             return
 
-    decomposed = _try_op_decomposer(item, args.intercepting_decomposer, context=args.context)
+    decomposed = None
+    if args.intercepting_decomposer is not None:
+        decomposed = _try_op_decomposer(item, args.intercepting_decomposer, context=args.context)
 
     if decomposed is NotImplemented or decomposed is None:
         decomposed = decompose_once(item, default=None, flatten=False, context=args.context)
 
-    if decomposed is NotImplemented or decomposed is None:
+    if (
+        decomposed is NotImplemented or decomposed is None
+    ) and args.fallback_decomposer is not None:
         decomposed = _try_op_decomposer(item, args.fallback_decomposer, context=args.context)
 
     if decomposed is NotImplemented or decomposed is None:
-        if not isinstance(item, ops.Operation) and isinstance(item, Iterable):
+        if not isinstance(item, ops.Operation) and (
+            isinstance(item, (list, tuple))
+            or (isinstance(item, Iterable) and not isinstance(item, str))
+        ):
             decomposed = item
 
     if decomposed is NotImplemented or decomposed is None:
@@ -437,7 +457,8 @@ def decompose_once_with_qubits(
         `val` didn't have a `_decompose_` method (or that method returned
         `NotImplemented` or `None`) and `default` wasn't set.
     """
-    return decompose_once(val, default, tuple(qubits), flatten=flatten, context=context)
+    qubits_tuple = qubits if isinstance(qubits, tuple) else tuple(qubits)
+    return decompose_once(val, default, qubits_tuple, flatten=flatten, context=context)
 
 
 def _try_decompose_into_operations_and_qubits(
