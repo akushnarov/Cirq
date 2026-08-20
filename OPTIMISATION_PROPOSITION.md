@@ -11,7 +11,7 @@ As quantum computing transitions into the early fault-tolerant era, quantum algo
 In its current architecture, Cirq encounters severe performance and memory scalability walls when executing fundamental operations at this scale:
 1. **Memory Bloat & Allocation Overhead**: A circuit with $10^6$ operations consumes **1.8 GB – 3.2 GB of RAM** in Python heap memory (~517 Bytes per operation) due to the instantiation of over $3 \times 10^6$ individual Python heap objects (`GateOperation`, `Qid`, `Gate`, `Moment`, `_qubit_to_op` dicts) lacking `__slots__`.
 2. **Quadratic & Linear Collision Scans**: Appending operations layer-by-layer takes **31.0 seconds** for $1.5\times 10^6$ operations because `_PlacementCache` and `Moment` perform $O(D \cdot N)$ hash map lookups (`get_earliest_accommodating_moment_index`) and repeatedly clone `Moment._qubit_to_op` dictionaries.
-3. **Algorithmic Traps in Compilation & DAGs**: 
+3. **Algorithmic Traps in Compilation & DAGs**:
    - `align_left` / `align_right` exhibits an $O(D \cdot N^2)$ quadratic copying bottleneck.
    - `MappingManager` in routing suffers from an $O(N^3)$ cubic Floyd-Warshall graph search in pure Python, taking **106.99 seconds** just to initialize a 1,000-qubit grid.
    - `CircuitDag.from_circuit` executes exhaustive pairwise comparisons, scaling catastrophically to hours/days for $10^6$ ops.
@@ -258,4 +258,3 @@ Phase 2: cirq_core_rs Native Rust Hybrid Core (PyO3)
 | **`resolve_parameters` Sweep** | 13.48 s | 0.85 s | **0.05 s** | **270x** |
 | **`CircuitDag` Construction** | > 1,000 s | 0.45 s | **0.03 s** | **>30,000x** |
 | **Stim / QASM Export** | 9.40 s | 2.90 s | **0.05 s** | **188x** |
-

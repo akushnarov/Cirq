@@ -256,13 +256,19 @@ graph TD
 ---
 
 ### Task 1.7: SciPy Compiled Shortest Paths in `MappingManager` `[WAVE 1 - TRACK B1: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 544187bd0622231bdc4b1ebb30c94dda3b69dfbf)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 day
 - **Concurrency**: **Can run concurrently with Task 1.1 and Task 1.9 (Fully Disjoint Module)**
 - **Dependencies**: None
 - **Target Files**:
   - `cirq-core/cirq/transformers/routing/mapping_manager.py` (`MappingManager.__init__`)
+- **Verified Benchmark Speedup**:
+  - Baseline Latency ($N=1000$ Grid): `106.99 s`
+  - Optimized Latency ($N=1000$ Grid): `0.0981 s`
+  - **Speedup**: **1,090x**
+  - **Test Suite**: 77/77 passed (100% incremental coverage)
+  - **Tracking Record**: `benchmarks/tracking/task_1_7_544187bd0622231bdc4b1ebb30c94dda3b69dfbf.json`
 
 #### Execution Workflow:
 1. **Create Feature Branch**:
@@ -997,6 +1003,3 @@ Before beginning task implementation, the following foundational preparation ste
   1. Add a GitHub Actions / CI workflow step running `pytest-benchmark`.
   2. Compare benchmark run against `benchmarks/baseline_results.json`.
   3. Fail presubmit checks if mean latency increases by > 5% on any scale configuration.
-
-
-

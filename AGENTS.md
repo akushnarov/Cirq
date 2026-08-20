@@ -95,11 +95,12 @@ To ensure 100% pass rate on GitHub Actions CI when merging to the Fork (`origin/
 - **Commit signing**: Automatically enabled with SSH signing key (`~/.ssh/id_ed25519`).
 - **Commit message convention**: Include issue references or descriptive scope tags, e.g. `perf(core): ...`.
 
-## 📋 Task Completion Protocol in TASKS.md
+## 📋 Task Completion & Documentation Protocol
 Whenever an agent finishes executing and validating a task:
 1. **Update `TASKS.md` Status**: Change `- **Status**: [ ] Pending` to `- **Status**: [x] Completed (Commit: <commit_sha>)`.
 2. **Record Commit SHA & Benchmark Record**: Ensure the tracking JSON is generated in `benchmarks/tracking/<task_id>_<commit_sha>.json` and metrics are summarized under the task in `TASKS.md`.
-3. **Verify Git Tree**: Ensure the branch has cleanly merged into `origin/main` before moving to dependent tasks.
+3. **Always Commit Documentation (.md) & Tracking Files**: Agents MUST always stage and commit all modified Markdown documents (`AGENTS.md`, `OPTIMISATION_PROPOSITION.md`, `TASKS.md`) and tracking JSON files (`benchmarks/tracking/`) alongside or immediately after task completion so that project status, task tracking, and repository history remain 100% in sync on `origin/main`.
+4. **Verify Git Tree & Push**: Ensure the branch and all documentation changes have cleanly merged and pushed into `origin/main` before moving to dependent tasks.
 
 ## 🧬 Cirq Code Architecture & Best Practices
 1. **Subpackages**:
