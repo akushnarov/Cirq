@@ -373,7 +373,14 @@ graph TD
 ---
 
 ### Task 1.3: Bitmask Moment Collision Engine `[WAVE 2 - TRACK B2: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 8bc29d13d8ddcdcfcbbea96e192a1c62020d238e)`
+- **Results**:
+  - Moment instantiation latency (100 ops): **14.20 µs** (baseline: **50.00 µs**, **3.52x speedup**).
+  - Moment instantiation latency (1000 ops): **143.05 µs** (baseline: **688.00 µs**, **4.81x speedup**).
+  - Moment collision check (`can_add` / `operates_on`): **~260 ns** single qubit query, eliminates intermediate set/dict allocations.
+  - Memory footprint for 1000x1000 moments (1M ops): **39.25 MB** (baseline: **150.15 MB**, **73.9% memory reduction** / 3.8x memory efficiency via lazy `_qubit_to_op` dict materialization).
+  - Unit tests: 535 passed (100% incremental line coverage, 0 regressions).
+  - Tracking Record: `benchmarks/tracking/task_1_3_8bc29d13d8ddcdcfcbbea96e192a1c62020d238e.json`.
 - **Priority**: `P0`
 - **Estimated Effort**: 2 days
 - **Concurrency**: **Can run concurrently with Task 1.2 and Task 1.5**

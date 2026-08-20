@@ -1,0 +1,41 @@
+{
+  "task_id": "1.3",
+  "task_name": "Bitmask Moment Collision Engine and Fast Moment Initialization",
+  "branch": "perf-bitmask-moment",
+  "commit_sha": "8bc29d13d8ddcdcfcbbea96e192a1c62020d238e",
+  "timestamp": "2026-08-20T12:54:00Z",
+  "metrics": {
+    "moment_initialization_us": {
+      "ops_100": {
+        "baseline_us": 50.0,
+        "optimized_us": 14.2,
+        "speedup_factor": 3.52
+      },
+      "ops_1000": {
+        "baseline_us": 688.0,
+        "optimized_us": 143.05,
+        "speedup_factor": 4.81
+      }
+    },
+    "moment_collision_checks_ns": {
+      "operates_on_hit_ns": 259.62,
+      "operates_on_miss_ns": 265.25,
+      "can_add_ns": 276.38
+    },
+    "moment_1000x1000_memory": {
+      "depth_moments": 1000,
+      "qubits_per_moment": 1000,
+      "total_operations": 1000000,
+      "lazy_dict_peak_memory_mb": 39.25,
+      "eager_dict_peak_memory_mb": 150.15,
+      "memory_reduction_pct": 73.86
+    }
+  },
+  "verification": {
+    "unit_tests_passed": 535,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
