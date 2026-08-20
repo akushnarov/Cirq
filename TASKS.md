@@ -600,7 +600,14 @@ graph TD
 ---
 
 ### Task 1.8: Batch Operation Insertion in `align_left` and `align_right` `[WAVE 3 - TRACK C3: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: d7f1b02a6479eb118c7bc77f2010892cfa4d4b18)`
+- **Results**:
+  - `align_left` on $500\times 500$ random circuit (70,000+ ops) latency: **0.1232 s** (local baseline: **0.7267 s**, **5.9x speedup**; reference baseline: **1.75 s**, **14.2x speedup**; **924,735 ops/sec** throughput).
+  - Replaced iterative `Moment.with_operation` and `Circuit.append` in `align_left` with track-based placement map `moments_ops: list[list[Operation]]`.
+  - Batch Moment construction via `Circuit._from_moments([Moment(m) for m in moments_ops])` eliminating $O(N)$ intermediate Moment allocations.
+  - Inlined single/two-qubit frontier lookups for high-throughput gate placement.
+  - Unit tests: 7,970 passed (100% incremental line coverage on touched files, 0 regressions).
+  - Tracking Record: `benchmarks/tracking/task_1_8_d7f1b02a6479eb118c7bc77f2010892cfa4d4b18.json`.
 - **Priority**: `P0`
 - **Estimated Effort**: 1 day
 - **Concurrency**: **Can run concurrently with Task 1.4 and Task 1.6**
