@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+import collections
+
 import cirq
 
 
@@ -223,3 +225,61 @@ def test_measurement_and_classical_control_same_moment_preserve_order() -> None:
     ops_in_order = list(circuit.all_operations())
     assert ops_in_order[0] == op_measure
     assert ops_in_order[1] == op_controlled
+
+
+def test_align_empty_circuit() -> None:
+    empty_c = cirq.Circuit()
+    cirq.testing.assert_same_circuits(cirq.align_left(empty_c), empty_c)
+    cirq.testing.assert_same_circuits(cirq.align_right(empty_c), empty_c)
+
+    empty_moments_c = cirq.Circuit(cirq.Moment(), cirq.Moment())
+    cirq.testing.assert_same_circuits(cirq.align_left(empty_moments_c), cirq.Circuit())
+    cirq.testing.assert_same_circuits(cirq.align_right(empty_moments_c), cirq.Circuit())
+
+
+def test_align_with_circuit_tags() -> None:
+    q = cirq.LineQubit(0)
+    c = cirq.Circuit(cirq.X(q), tags=('my_tag',))
+    aligned_left = cirq.align_left(c)
+    assert aligned_left.tags == ('my_tag',)
+    aligned_right = cirq.align_right(c)
+    assert aligned_right.tags == ('my_tag',)
+
+
+def test_align_3qubit_gates() -> None:
+    q0, q1, q2 = cirq.LineQubit.range(3)
+    c = cirq.Circuit(
+        cirq.Moment([cirq.X(q0)]), cirq.Moment([cirq.Y(q1)]), cirq.Moment([cirq.CCZ(q0, q1, q2)])
+    )
+    expected_left = cirq.Circuit(
+        cirq.Moment([cirq.X(q0), cirq.Y(q1)]), cirq.Moment([cirq.CCZ(q0, q1, q2)])
+    )
+    cirq.testing.assert_same_circuits(cirq.align_left(c), expected_left)
+
+
+def test_align_random_circuits_equivalence() -> None:
+    for seed in range(5):
+        c = cirq.testing.random_circuit(qubits=20, n_moments=30, op_density=0.6, random_state=seed)
+        left = cirq.align_left(c)
+        right = cirq.align_right(c)
+        # Verify idempotency of alignment
+        cirq.testing.assert_same_circuits(cirq.align_left(left), left)
+        cirq.testing.assert_same_circuits(cirq.align_right(right), right)
+        # Verify operations are preserved
+        assert collections.Counter(c.all_operations()) == collections.Counter(left.all_operations())
+        assert collections.Counter(c.all_operations()) == collections.Counter(
+            right.all_operations()
+        )
+
+
+def test_align_with_ignored_tagged_classical_controls() -> None:
+    q0, q1 = cirq.LineQubit.range(2)
+    tag = 'ignore_me'
+    c = cirq.Circuit(
+        cirq.Moment([cirq.measure(q0, key='m')]),
+        cirq.Moment(),
+        cirq.Moment([cirq.X(q1).with_classical_controls('m').with_tags(tag)]),
+    )
+    context = cirq.TransformerContext(tags_to_ignore=(tag,))
+    aligned = cirq.align_left(c, context=context)
+    cirq.testing.assert_same_circuits(aligned, c)
