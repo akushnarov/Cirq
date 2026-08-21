@@ -146,7 +146,7 @@ To maximize throughput, tasks that touch **disjoint code modules** can be execut
 | **Phase 1.5** | **Track Exp-Init (Provisioning)** | **Task 1.5.1**: Dual Worktree Provisioning & Environment Locking | `/tmp/cirq_upstream_baseline`, `/tmp/cirq_fork_optimized` | Task 1.10 complete |
 | **Phase 1.5** | **Track Exp-Base (Baseline Run)** | **Task 1.5.2**: Baseline Benchmark Run on `upstream/main` | `/tmp/cirq_upstream_baseline` | Task 1.5.3 |
 | **Phase 1.5** | **Track Exp-Fork (Fork Run)** | **Task 1.5.3**: Fork Benchmark Run on `origin/main` | `/tmp/cirq_fork_optimized` | Task 1.5.2 |
-| **Phase 1.5** | **Track Exp-Stat (Synthesis)** | **Task 1.5.4**: Statistical Analysis & `HEAD_TO_HEAD_RESULTS.md` | `HEAD_TO_HEAD_RESULTS.md`, `benchmarks/` | Depends on 1.5.2, 1.5.3 |
+| **Phase 1.5** | **Track Exp-Stat (Synthesis)** | **Task 1.5.4**: Statistical Analysis & `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md` | `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`, `benchmarks/` | Depends on 1.5.2, 1.5.3 |
 | **Phase 2** | **Track Rust Core** | **Tasks 2.1 – 2.5**: `PackedOp` Arena & SIMD BitVec | `crates/cirq-core-rs/` | Pure Rust workspace |
 | **Phase 2** | **Track Rust Passes** | **Tasks 2.6 – 2.7**: Native Passes & Stim Bridge | `crates/cirq-core-rs/src/transformers/` | Independent pass modules |
 
@@ -190,7 +190,7 @@ graph TD
         T1_5_1["Task 1.5.1: Worktree Provisioning & Environment Locking"]
         T1_5_2["[PARALLEL] Task 1.5.2: Baseline Benchmark on upstream/main"]
         T1_5_3["[PARALLEL] Task 1.5.3: Fork Benchmark on origin/main"]
-        T1_5_4["Task 1.5.4: Statistical Synthesis & HEAD_TO_HEAD_RESULTS.md"]
+        T1_5_4["Task 1.5.4: Statistical Synthesis & OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md"]
     end
 
     T1_10 --> T1_5_1
@@ -793,29 +793,33 @@ graph TD
 
 ---
 
-### Task 1.5.4: Statistical Synthesis & Head-to-Head Results Publication `[PHASE 1.5 - TRACK EXP-STAT]`
+### Task 1.5.4: Statistical Synthesis & Head-to-Head Results Publication (`OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`) `[PHASE 1.5 - TRACK EXP-STAT]`
 - **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Dependencies**: Tasks 1.5.2, 1.5.3
 - **Target Files**:
-  - `HEAD_TO_HEAD_RESULTS.md`
+  - `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`
   - `benchmarks/head_to_head_results.json`
 
 #### Execution Workflow:
 1. **Perform Statistical Analysis**:
    - Ingest `/tmp/results_upstream_raw.json` and `/tmp/results_fork_raw.json`.
    - Calculate arithmetic mean ($\mu$), median ($M$), standard deviation ($s$), 95% Confidence Intervals ($\text{CI}_{95}$), Mann-Whitney U test p-values, Welch's t-test p-values, Cohen's $d$ effect sizes, and speedup ratios.
-2. **Generate Head-to-Head Results Artifact**:
-   - Write `HEAD_TO_HEAD_RESULTS.md` formatted with Executive Summaries and 5 domain comparison tables with exact shifts.
+2. **Generate Head-to-Head Results Artifact (`OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`)**:
+   - Generate timestamped markdown document `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md` (e.g. `OPTIMISATION_COMPARISON_RESULTS_20260821_074500.md` or ISO timestamp).
+   - Strictly adhere to the required 3-part structure:
+     1. **Executive summary of the optimisation** (short, 2-3 bullets summarizing major speedups and memory reductions).
+     2. **Executive summary of what was optimoised** (short, 2-3 bullets detailing specific subsystems, algorithms, and data structure improvements).
+     3. **Detailed report** (5 comparison tables: Object Instantiation & Equality, Circuit Construction Latency & Scaling, Quantum Error Correction & Surface Code Construction, Protocols & Transformers & DAGs, Memory Footprint; with exact columns: `Check name | Before | After | Abs. Shift | Procentual Shift`).
    - Save structured tracking JSON in `benchmarks/head_to_head_results.json`.
 3. **Cleanup & Merge to Fork**:
    ```bash
    git worktree remove -f /tmp/cirq_upstream_baseline
    git worktree remove -f /tmp/cirq_fork_optimized
    ./check/misc
-   git add HEAD_TO_HEAD_RESULTS.md benchmarks/head_to_head_results.json TASKS.md
-   git commit -S -m "docs: head-to-head empirical benchmark experiment results and statistical validation"
+   git add OPTIMISATION_COMPARISON_RESULTS_*.md benchmarks/head_to_head_results.json TASKS.md
+   git commit -S -m "docs: head-to-head empirical benchmark experiment results (OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md)"
    git push origin main
    ```
 4. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.

@@ -94,7 +94,7 @@ sequenceDiagram
     User->>Coord: Initiate Head-to-Head Comparison Experiment
     Coord->>Sub1: Provision isolated worktrees & verify Python environment
     Sub1-->>Coord: Worktrees provisioned at /tmp/cirq_upstream_baseline & /tmp/cirq_fork_optimized
-    
+
     rect rgb(240, 248, 255)
         note over Coord,Sub3: Interleaved Benchmark Execution Loop (K=30 Iterations)
         loop For k = 1 to K
@@ -107,7 +107,7 @@ sequenceDiagram
 
     Coord->>Sub4: Transmit raw sample datasets for statistical analysis
     Sub4->>Sub4: Compute Mean, Median, StdDev, 95% CI, p-value (Mann-Whitney U), Cohen's d
-    Sub4-->>Coord: Generate HEAD_TO_HEAD_RESULTS.md & JSON artifacts
+    Sub4-->>Coord: Generate OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md & JSON artifacts
     Coord->>User: Present validated statistical comparison & speedup tables
 ```
 
@@ -131,7 +131,7 @@ sequenceDiagram
 4. **Subagent 4: Statistical Analyst & Synthesizer (`codeboon-architect` / `codeboon-code`)**:
    - Ingests `/tmp/results_upstream_raw.json` and `/tmp/results_fork_raw.json`.
    - Calculates statistical metrics: arithmetic mean ($\mu$), median ($M$), standard deviation ($\sigma$), 95% Student's $t$ confidence interval, Mann-Whitney U test p-values, Cohen's $d$ effect sizes, absolute shift ($\Delta$), percentage shift ($\%\Delta$), and speedup ratio ($S$).
-   - Generates `HEAD_TO_HEAD_RESULTS.md` and commits all tracking JSON records.
+   - Generates `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md` (e.g. `OPTIMISATION_COMPARISON_RESULTS_20260821_074500.md`) adhering strictly to the 3-section executive summary & detailed table format, and commits all tracking JSON records.
 
 ---
 
@@ -268,6 +268,48 @@ For every test point $i$, we collect two independent sample distributions of siz
 }
 ```
 
+### 5.3 Output Results Document Specification (`OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`)
+
+On the final step of the experiment, Subagent 4 MUST generate a timestamped markdown report named `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md` (e.g. `OPTIMISATION_COMPARISON_RESULTS_20260821_074500.md` using the exact execution date and time).
+
+The generated document MUST strictly follow this exact 3-part structure:
+
+```markdown
+# Cirq Fundamental Operations: Head-to-Head Optimisation Comparison Results (OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md)
+
+## 1. Executive Summary of the Optimisation
+- **Order-of-Magnitude Speedups across Critical Subsystems**: [Short bullet, 1-2 lines summarizing major speedup metrics, e.g. Routing 1,337x, DAG 844x-1,200x, Alignment 17.5x, Circuit Append 13.4x]
+- **Massive Memory Footprint Reduction**: [Short bullet, 1-2 lines summarizing peak heap reduction, e.g. 67.4% on 1M ops, 99.87% on 10,000-round surface codes]
+- **Zero Regressions & 100% CI Equivalence**: [Short bullet, 1 line confirming 100% backward compatibility and test passage]
+
+## 2. Executive Summary of What Was Optimised
+- **Universal __slots__ & Memory Layout**: [Short bullet, 1-2 lines detailing __slots__, inlined coordinate/pointer checks, and eliminated __dict__]
+- **High-Throughput Moment & Circuit Engines**: [Short bullet, 1-2 lines detailing bitmask collision engine, lazy qubit-to-op dicts, and O(1) layer append]
+- **Algorithmic Graph & Protocol Accelerations**: [Short bullet, 1-2 lines detailing SciPy shortest paths, linear-time CircuitDag, fast decomposition, and topology-invariant parameter resolution]
+
+## 3. Detailed Report
+
+### 3.1 Object Instantiation Latency & Equality
+| Check name | Before | After | Abs. Shift | Procentual Shift |
+| :--- | :--- | :--- | :--- | :--- |
+
+### 3.2 Circuit Construction Latency & Scaling
+| Check name | Before | After | Abs. Shift | Procentual Shift |
+| :--- | :--- | :--- | :--- | :--- |
+
+### 3.3 Quantum Error Correction & Surface Code Construction (T=d rounds)
+| Check name | Before | After | Abs. Shift | Procentual Shift |
+| :--- | :--- | :--- | :--- | :--- |
+
+### 3.4 Protocols, Transformers & DAGs
+| Check name | Before | After | Abs. Shift | Procentual Shift |
+| :--- | :--- | :--- | :--- | :--- |
+
+### 3.5 Memory Footprint
+| Check name | Before | After | Abs. Shift | Procentual Shift |
+| :--- | :--- | :--- | :--- | :--- |
+```
+
 ---
 
 ## 6. Detailed Step-by-Step Execution Runbook
@@ -298,22 +340,23 @@ echo "Fork commit:     $(cd /tmp/cirq_fork_optimized && git rev-parse --short HE
 ### Step 2: Interleaved Head-to-Head Runner Execution
 Execute the automated interleaved test harness:
 ```bash
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RESULTS_MD="OPTIMISATION_COMPARISON_RESULTS_${TIMESTAMP}.md"
+
 python benchmarks/run_head_to_head.py \
     --baseline-dir /tmp/cirq_upstream_baseline \
     --fork-dir /tmp/cirq_fork_optimized \
     --samples 30 \
     --warmup 5 \
     --output-json benchmarks/head_to_head_results.json \
-    --output-md HEAD_TO_HEAD_RESULTS.md
+    --output-md "${RESULTS_MD}"
 ```
 
 ### Step 3: Statistical Verification & Report Formatting
-The runner script computes all confidence intervals, effect sizes, and p-values, outputting markdown tables directly matching the `OPTIMISATION_RESULTS.md` format:
-- Table 1: Object Instantiation Latency & Equality
-- Table 2: Circuit Construction Latency & Scaling
-- Table 3: Quantum Error Correction & Surface Code Construction
-- Table 4: Protocols, Transformers & DAGs
-- Table 5: Memory Footprint
+The runner script computes all confidence intervals, effect sizes, and p-values, outputting markdown tables directly matching the required 3-part structure in `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`:
+1. Executive summary of the optimisation (short, 2-3 bullets)
+2. Executive summary of what was optimoised (short, 2-3 bullets)
+3. Detailed report (the 5 comparative tables with columns: `Check name | Before | After | Abs. Shift | Procentual Shift`)
 
 ### Step 4: Cleanup & Commit Artifacts
 ```bash
@@ -325,8 +368,8 @@ git worktree remove -f /tmp/cirq_fork_optimized
 ./check/misc
 
 # Commit only markdown and tracking artifacts to Fork
-git add OPTIMISATION_COMPARISON_EXPERIMENT.md HEAD_TO_HEAD_RESULTS.md benchmarks/
-git commit -S -m "docs: head-to-head empirical benchmark experiment results"
+git add OPTIMISATION_COMPARISON_EXPERIMENT.md OPTIMISATION_COMPARISON_RESULTS_*.md benchmarks/
+git commit -S -m "docs: head-to-head empirical benchmark experiment results (${RESULTS_MD})"
 git push origin main
 ```
 
