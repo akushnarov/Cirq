@@ -726,7 +726,7 @@ graph TD
 ## 3. Phase 1.5: Head-to-Head Empirical Benchmark Experiment (`upstream/main` vs `origin/main`)
 
 ### Task 1.5.1: Dual Worktree Provisioning & Environment Locking `[PHASE 1.5 - TRACK EXP-INIT]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 35c7d6cac835df19557f3e8182e09f2436a09372)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Dependencies**: Phase 1 Complete (Task 1.10)
@@ -747,14 +747,14 @@ graph TD
    - Lock Python 3.13 virtual environment dependencies (`pip freeze > /tmp/env_manifest.txt`).
    - Verify CPU governor and core affinity (`taskset -c 2,3`).
 3. **Verify Git Commits**:
-   - Baseline Commit: `upstream/main` (`039eb8c0`)
-   - Fork Commit: `origin/main` (latest HEAD)
+   - Baseline Commit: `upstream/main` (`e0b54ff0`)
+   - Fork Commit: `origin/main` (`35c7d6ca`)
 4. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
 
 ---
 
 ### Task 1.5.2: Baseline Empirical Benchmark Execution on `upstream/main` `[PHASE 1.5 - TRACK EXP-BASE: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 35c7d6cac835df19557f3e8182e09f2436a09372)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run interleaved/parallel with Task 1.5.3**
@@ -774,7 +774,7 @@ graph TD
 ---
 
 ### Task 1.5.3: Fork Empirical Benchmark Execution on `origin/main` `[PHASE 1.5 - TRACK EXP-FORK: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 35c7d6cac835df19557f3e8182e09f2436a09372)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run interleaved/parallel with Task 1.5.2**
@@ -794,13 +794,22 @@ graph TD
 ---
 
 ### Task 1.5.4: Statistical Synthesis & Head-to-Head Results Publication (`OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`) `[PHASE 1.5 - TRACK EXP-STAT]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 35c7d6cac835df19557f3e8182e09f2436a09372)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Dependencies**: Tasks 1.5.2, 1.5.3
 - **Target Files**:
-  - `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`
+  - `OPTIMISATION_COMPARISON_RESULTS_20260821_084810.md`
   - `benchmarks/head_to_head_results.json`
+- **Verified Head-to-Head Speedups**:
+  - **`MappingManager` (N=1,000 Grid)**: **898.98x speedup** (87.65 s $\to$ 0.10 s, -99.89% latency).
+  - **`CircuitDag.from_circuit` (10k ops)**: **622.27x speedup** (21.28 s $\to$ 0.03 s, -99.84% latency).
+  - **`CircuitDag.from_circuit` (Random 1.5k ops)**: **2,244.28x speedup** (11.22 s $\to$ 0.01 s, -99.96% latency).
+  - **`Circuit.append` Layerwise (2000q x 1000m, 1.5M ops)**: **14.34x speedup** (33.72 s $\to$ 2.35 s, -93.02% latency).
+  - **`align_left` (125k ops)**: **11.50x speedup** (1.19 s $\to$ 0.10 s, -91.30% latency).
+  - **`Moment` Init (1,000 ops)**: **4.25x speedup** (473.75 µs $\to$ 111.39 µs, -76.49% latency).
+  - **Surface Code QEC Memory ($d=31, T=10,000$)**: **706.05x memory efficiency** (2,450 MB $\to$ 3.47 MB, -99.86% memory).
+  - **Published Artifact**: `OPTIMISATION_COMPARISON_RESULTS_20260821_084810.md` and `benchmarks/head_to_head_results.json`.
 
 #### Execution Workflow:
 1. **Perform Statistical Analysis**:
