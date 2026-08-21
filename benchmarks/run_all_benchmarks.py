@@ -82,7 +82,7 @@ def run_benchmarks():
         print(f"[{category}] {name}: Before={entry['before_str']} | After={entry['after_str']} | {shift_str} {sp_str}")
 
     print("=== 1. Object Instantiation Latency & Equality ===")
-    
+
     # LineQubit
     t_lq = measure_time(lambda: [cirq.LineQubit(i) for i in range(1000)], number=20) / 1000 * 1e9
     record("1. Object Instantiation", "cirq.LineQubit(i) instantiation latency", 1435.8, "ns", round(t_lq, 2), "ns")
@@ -127,7 +127,7 @@ def run_benchmarks():
 
 
     print("\n=== 2. Circuit Construction Latency & Throughput ===")
-    
+
     # 100x100 layerwise append (7500 ops)
     qs_100x100 = [cirq.GridQubit(i, j) for i in range(10) for j in range(10)]
     ops_100x100 = [cirq.X(q) for q in qs_100x100]
