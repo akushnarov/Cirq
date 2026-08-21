@@ -143,6 +143,10 @@ To maximize throughput, tasks that touch **disjoint code modules** can be execut
 | **Wave 3** | **Track B3 (Transformers)** | **Task 1.8**: Batch Insertion in `align_left/right` | `cirq-core/cirq/transformers/align_*.py` | Tasks 1.4, 1.6 |
 | **Wave 3** | **Track C3 (Parameter Sweep)**| **Task 1.6**: Topology-Invariant Parameter Resolution | `cirq-core/cirq/protocols/resolve_parameters.py` | Tasks 1.4, 1.8 |
 | **Wave 4** | **Track D (QEC Synthesis)** | **Task 1.10**: Vectorized Surface Code & QEC Generator | `benchmarks/`, `cirq/experiments/` | End of Phase 1 |
+| **Phase 1.5** | **Track Exp-Init (Provisioning)** | **Task 1.5.1**: Dual Worktree Provisioning & Environment Locking | `/tmp/cirq_upstream_baseline`, `/tmp/cirq_fork_optimized` | Task 1.10 complete |
+| **Phase 1.5** | **Track Exp-Base (Baseline Run)** | **Task 1.5.2**: Baseline Benchmark Run on `upstream/main` | `/tmp/cirq_upstream_baseline` | Task 1.5.3 |
+| **Phase 1.5** | **Track Exp-Fork (Fork Run)** | **Task 1.5.3**: Fork Benchmark Run on `origin/main` | `/tmp/cirq_fork_optimized` | Task 1.5.2 |
+| **Phase 1.5** | **Track Exp-Stat (Synthesis)** | **Task 1.5.4**: Statistical Analysis & `HEAD_TO_HEAD_RESULTS.md` | `HEAD_TO_HEAD_RESULTS.md`, `benchmarks/` | Depends on 1.5.2, 1.5.3 |
 | **Phase 2** | **Track Rust Core** | **Tasks 2.1 – 2.5**: `PackedOp` Arena & SIMD BitVec | `crates/cirq-core-rs/` | Pure Rust workspace |
 | **Phase 2** | **Track Rust Passes** | **Tasks 2.6 – 2.7**: Native Passes & Stim Bridge | `crates/cirq-core-rs/src/transformers/` | Independent pass modules |
 
@@ -182,6 +186,19 @@ graph TD
     T1_3 --> T1_8
     T1_4 --> T1_10
 
+    subgraph "Phase 1.5: Head-to-Head Empirical Benchmark Experiment"
+        T1_5_1["Task 1.5.1: Worktree Provisioning & Environment Locking"]
+        T1_5_2["[PARALLEL] Task 1.5.2: Baseline Benchmark on upstream/main"]
+        T1_5_3["[PARALLEL] Task 1.5.3: Fork Benchmark on origin/main"]
+        T1_5_4["Task 1.5.4: Statistical Synthesis & HEAD_TO_HEAD_RESULTS.md"]
+    end
+
+    T1_10 --> T1_5_1
+    T1_5_1 --> T1_5_2
+    T1_5_1 --> T1_5_3
+    T1_5_2 --> T1_5_4
+    T1_5_3 --> T1_5_4
+
     subgraph "Phase 2: Native Rust Hybrid Core cirq_core_rs"
         T2_1[Task 2.1: Rust Workspace Scaffolding] --> T2_2[Task 2.2: QubitRegistry & Interning]
         T2_2 --> T2_3[Task 2.3: PackedOp Arena & StandardGate Enum]
@@ -191,7 +208,7 @@ graph TD
         T2_5 --> T2_7["[PARALLEL 2.7] Task 2.7: Native RepeatBlock AST & Stim Bridge"]
     end
 
-    Wave 4 --> Phase 2
+    T1_5_4 --> T2_1
 ```
 
 ---
@@ -702,11 +719,111 @@ graph TD
    git checkout main && git pull origin main && git merge --ff-only perf-vectorized-qec && git push origin main
    ```
 7. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
-   Phase 1 Complete. Proceed to **Phase 2**.
+   Phase 1 Complete. Proceed to **Phase 1.5: Head-to-Head Empirical Benchmark Experiment**.
 
 ---
 
-## 3. Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)
+## 3. Phase 1.5: Head-to-Head Empirical Benchmark Experiment (`upstream/main` vs `origin/main`)
+
+### Task 1.5.1: Dual Worktree Provisioning & Environment Locking `[PHASE 1.5 - TRACK EXP-INIT]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Dependencies**: Phase 1 Complete (Task 1.10)
+- **Target Files**:
+  - `benchmarks/run_head_to_head.py`
+  - `OPTIMISATION_COMPARISON_EXPERIMENT.md`
+
+#### Execution Workflow:
+1. **Setup Dual Worktrees**:
+   ```bash
+   git fetch upstream && git fetch origin
+   git worktree remove -f /tmp/cirq_upstream_baseline 2>/dev/null || true
+   git worktree add -f /tmp/cirq_upstream_baseline upstream/main
+   git worktree remove -f /tmp/cirq_fork_optimized 2>/dev/null || true
+   git worktree add -f /tmp/cirq_fork_optimized origin/main
+   ```
+2. **Lock Runtime & Generate Manifest**:
+   - Lock Python 3.13 virtual environment dependencies (`pip freeze > /tmp/env_manifest.txt`).
+   - Verify CPU governor and core affinity (`taskset -c 2,3`).
+3. **Verify Git Commits**:
+   - Baseline Commit: `upstream/main` (`039eb8c0`)
+   - Fork Commit: `origin/main` (latest HEAD)
+4. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.5.2: Baseline Empirical Benchmark Execution on `upstream/main` `[PHASE 1.5 - TRACK EXP-BASE: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run interleaved/parallel with Task 1.5.3**
+- **Dependencies**: Task 1.5.1
+- **Target Files**:
+  - `/tmp/cirq_upstream_baseline/`
+  - `/tmp/results_upstream_raw.json`
+
+#### Execution Workflow:
+1. **Execute Baseline Interleaved Harness**:
+   - Execute $K=30$ recorded samples ($W=5$ warmup) across all 26 test points in `/tmp/cirq_upstream_baseline`.
+   - Record nanosecond-precision latency, peak RSS memory (`tracemalloc`), and throughput metrics.
+2. **Persist Raw Results**:
+   - Save full distribution array to `/tmp/results_upstream_raw.json`.
+3. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.5.3: Fork Empirical Benchmark Execution on `origin/main` `[PHASE 1.5 - TRACK EXP-FORK: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run interleaved/parallel with Task 1.5.2**
+- **Dependencies**: Task 1.5.1
+- **Target Files**:
+  - `/tmp/cirq_fork_optimized/`
+  - `/tmp/results_fork_raw.json`
+
+#### Execution Workflow:
+1. **Execute Fork Interleaved Harness**:
+   - Execute $K=30$ recorded samples ($W=5$ warmup) across all 26 test points in `/tmp/cirq_fork_optimized`.
+   - Record nanosecond-precision latency, peak RSS memory (`tracemalloc`), and throughput metrics.
+2. **Persist Raw Results**:
+   - Save full distribution array to `/tmp/results_fork_raw.json`.
+3. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.5.4: Statistical Synthesis & Head-to-Head Results Publication `[PHASE 1.5 - TRACK EXP-STAT]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Dependencies**: Tasks 1.5.2, 1.5.3
+- **Target Files**:
+  - `HEAD_TO_HEAD_RESULTS.md`
+  - `benchmarks/head_to_head_results.json`
+
+#### Execution Workflow:
+1. **Perform Statistical Analysis**:
+   - Ingest `/tmp/results_upstream_raw.json` and `/tmp/results_fork_raw.json`.
+   - Calculate arithmetic mean ($\mu$), median ($M$), standard deviation ($s$), 95% Confidence Intervals ($\text{CI}_{95}$), Mann-Whitney U test p-values, Welch's t-test p-values, Cohen's $d$ effect sizes, and speedup ratios.
+2. **Generate Head-to-Head Results Artifact**:
+   - Write `HEAD_TO_HEAD_RESULTS.md` formatted with Executive Summaries and 5 domain comparison tables with exact shifts.
+   - Save structured tracking JSON in `benchmarks/head_to_head_results.json`.
+3. **Cleanup & Merge to Fork**:
+   ```bash
+   git worktree remove -f /tmp/cirq_upstream_baseline
+   git worktree remove -f /tmp/cirq_fork_optimized
+   ./check/misc
+   git add HEAD_TO_HEAD_RESULTS.md benchmarks/head_to_head_results.json TASKS.md
+   git commit -S -m "docs: head-to-head empirical benchmark experiment results and statistical validation"
+   git push origin main
+   ```
+4. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+   Phase 1.5 Complete. Proceed to **Phase 2**.
+
+---
+
+## 4. Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)
 
 ### Task 2.1: Rust Workspace & Maturin Build Scaffolding `[PHASE 2 - WAVE 1]`
 - **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
@@ -987,18 +1104,18 @@ graph TD
 
 ---
 
-## 4. Recommended Preparation Steps
+## 5. Recommended Preparation Steps
 
 Before beginning task implementation, the following foundational preparation steps MUST be executed:
 
-### 4.1 Benchmark Baseline Suite Freeze & JSON Serialization
+### 5.1 Benchmark Baseline Suite Freeze & JSON Serialization
 - **Objective**: Establish an immutable performance baseline against which all Phase 1 and Phase 2 PRs are measured.
 - **Action**:
   1. Run the comprehensive benchmark suite across all scale matrix configurations ($N \in [10..2000]$, $D \in [10..1000]$, $d \in [3..31]$).
   2. Serialize the complete results into `benchmarks/baseline_results.json`.
   3. Check in `benchmarks/baseline_results.json` to git version control on `origin/main`.
 
-### 4.2 Automated Property-Based Invariant Testing Harness
+### 5.2 Automated Property-Based Invariant Testing Harness
 - **Objective**: Ensure that aggressive performance refactorings (such as `__slots__`, bitmask collisions, and fast-path parameter resolution) introduce **zero semantic regressions** or subtle behavioral bugs.
 - **Action**:
   1. Create a property-based test harness using `hypothesis` in `cirq-core/cirq/testing/property_tests.py`.
@@ -1008,7 +1125,7 @@ Before beginning task implementation, the following foundational preparation ste
      - Parameter substitution invariance: `cirq.resolve_parameters(c, params) == legacy_resolve(c, params)`
      - Diagram info & JSON serialization round-tripping.
 
-### 4.3 Pre-commit Hook & Incremental Formatting Setup
+### 5.3 Pre-commit Hook & Incremental Formatting Setup
 - **Objective**: Ensure all modified code adheres strictly to Cirq formatting and linting rules before commits are created.
 - **Action**:
   1. Configure pre-commit hook to invoke incremental formatting:
@@ -1017,14 +1134,14 @@ Before beginning task implementation, the following foundational preparation ste
      ```
   2. Verify that SSH commit signing is active (`git config user.signingkey ~/.ssh/id_ed25519`).
 
-### 4.4 Subagent Execution Strategy & Workload Allocation
+### 5.4 Subagent Execution Strategy & Workload Allocation
 - **Objective**: Orchestrate concurrent pair-programming workflows across specialized subagents without merge conflicts.
 - **Action**:
   1. Isolate work into independent feature branches per task (e.g. Wave 1 branches `perf-universal-slots`, `perf-scipy-routing-init`, `perf-fast-decompose`).
   2. Execute Wave 1 subagents concurrently across disjoint directories.
   3. Rebase feature branches on `origin/main` before fast-forward merging into `origin/main`.
 
-### 4.5 Performance CI & Regression Guard Configuration
+### 5.5 Performance CI & Regression Guard Configuration
 - **Objective**: Automatically block any pull request or commit that introduces a performance regression > 5%.
 - **Action**:
   1. Add a GitHub Actions / CI workflow step running `pytest-benchmark`.
