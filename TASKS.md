@@ -877,18 +877,21 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
   - In `__init__`, `SingleQubitPauliStringGateOperation` eagerly allocates an isolated Python dictionary `{qubit: pauli}` for `self._qubit_pauli_map` and a `complex` coefficient.
   - As a consequence, 1,000,000 operations allocate 2,000,000 dictionaries, causing 1M distinct ops heap memory to surge from 432 MB to **718.58 MB** (tracemalloc: 328 MB in `pauli_string.py:185` + 214 MB in `pauli_string.py:1184`), while `cirq.X(q)` instantiation latency slows down to **2,911.67 ns**.
 - **Implementation Plan (Layout-Conflict-Free Slotted Architecture)**:
-  1. In Python, multiple inheritance with `__slots__` raises `TypeError: multiple bases have instance lay-out conflict` if more than one base class has non-empty slots. Because `GateOperation` already defines `__slots__ = ('_gate', '_qubits')`, `PauliString` base must define empty `__slots__ = ()`.
+  1. In Python, multiple inheritance with `__slots__` raises `TypeError: multiple bases have instance lay-out conflict` if more than one base class has non-empty slots. Because `GateOperation` already defines `__slots__ = ('_gate', '_qubits')` and inherits `__weakref__` from `Operation`, `PauliString` base must define empty `__slots__ = ()`.
   2. Implement `PauliString` as the abstract base with `__slots__ = ()`, implementing all protocol and operator methods, with `__new__` dispatching to `_MultiQubitPauliString` when multi-qubit.
-  3. Define `_MultiQubitPauliString(PauliString)` with `__slots__ = ('_qubit_pauli_map', '_coefficient', '__weakref__')` for general multi-qubit Pauli strings.
+  3. Define `_MultiQubitPauliString(PauliString)` with `__slots__ = ('_qubit_pauli_map', '_coefficient')` (do NOT include `'__weakref__'` as it is already inherited from `Operation`).
   4. Define `SingleQubitPauliStringGateOperation(GateOperation, PauliString)` with `__slots__ = ()` (inheriting slots directly from `GateOperation`).
-  5. Optimize `SingleQubitPauliStringGateOperation.__init__` to avoid eager dictionary allocation:
+  5. In `SingleQubitPauliStringGateOperation`, explicitly override `__mul__` and `__rmul__` to delegate to `PauliString.__mul__` and `PauliString.__rmul__` (preventing `GateOperation.__mul__` MRO interception).
+  6. Optimize `SingleQubitPauliStringGateOperation.__init__` to avoid eager dictionary allocation:
      - Set `self._gate = pauli` and `self._qubits = (qubit,)` directly via `GateOperation.__init__`.
-     - Lazily construct `_qubit_pauli_map` only when indexed or mapped as a `PauliString` mapping (`{self._qubits[0]: self._gate}`), with a fast-path property.
+     - Implement virtual mapping accessors (`__getitem__`, `get`, `__contains__`, `__len__`, `keys`, `values`, `items`) returning values directly without intermediate dictionary allocation.
+     - Implement fast-path `equal_up_to_coefficient` comparing `self._gate` and `self._qubits[0]`.
      - Store implicit unit coefficient (`1.0`) without allocating complex objects.
-  6. Optimize `_PauliX.on`, `_PauliY.on`, `_PauliZ.on` fast path instantiation.
+  7. Add `__slots__ = ('coefficient', 'pauli_int_dict', '__weakref__')` to `MutablePauliString`.
+  8. Optimize `_PauliX.on`, `_PauliY.on`, `_PauliZ.on` fast path instantiation.
 - **Target Metrics**:
-  - 1M distinct ops heap memory drops from **718.58 MB** to **< 50.0 MB** (>14x memory reduction).
-  - `cirq.X(q)` instantiation latency drops from **2,911.67 ns** to **< 600 ns** (>4.8x speedup).
+  - 1M distinct ops heap memory drops from **718.58 MB** to **< 48.0 MB** (>14.9x memory reduction).
+  - `cirq.X(q)` instantiation latency drops from **2,911.67 ns** to **< 300 ns** (>9x speedup).
   - 100% test pass on `cirq-core/cirq/ops/pauli_string_test.py` and `pauli_gates_test.py`.
 
 #### Execution Workflow:
@@ -930,21 +933,23 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 - **Dependencies**: Phase 1.5 Complete
 - **Target Files**:
   - `cirq-core/cirq/devices/grid_qubit.py` (`_BaseGridQid`, `GridQubit`, `GridQid`)
+  - `cirq-core/cirq/devices/grid_qubit_test.py`
 - **Problem Statement & Root Cause**:
-  - `_BaseGridQid.__slots__` defines `('_row', '_col', '_dimension', '_comp_key', '_hash')`.
+  - `_BaseGridQid.__slots__` defines `('_row', '_col', '_dimension', '_comp_key', '_hash')` (88 bytes per instance).
   - In `GridQubit.__new__`, every single instantiation executes `inst._dimension = 2` and `inst._comp_key = None`, adding two redundant `STORE_ATTR` slot writes per qubit.
   - `_dimension = 2` is a class invariant for all `GridQubit` instances and should be a class attribute, not an instance slot variable.
   - `_comp_key` is redundant because `__lt__`, `__le__`, `__ge__`, and `__gt__` already compare `_row` and `_col` directly with zero tuple allocation.
   - WeakValueDictionary cache lookup on miss adds unnecessary overhead when creating unique coordinate instances.
 - **Implementation Plan**:
-  1. Refactor `_BaseGridQid.__slots__` to `('_row', '_col', '_hash')`.
-  2. Define `_dimension = 2` as a class attribute on `GridQubit`, and `_dimension` slot attribute only on `GridQid` (`__slots__ = ('_dimension',)`).
-  3. Strip `inst._dimension = 2` and `inst._comp_key = None` from `GridQubit.__new__`, reducing instantiation to 3 fast slot assignments (`_row`, `_col`, `_hash`).
-  4. Optimize weakref cache lookup and tuple hashing path.
+  1. Refactor `_BaseGridQid.__slots__` to `('_row', '_col', '_hash')` (3 slots).
+  2. Define `_dimension: int = 2` as a class attribute on `GridQubit` with `__slots__ = ()`, reducing instance size from 88 bytes to **72 bytes** (18.2% reduction).
+  3. Define `GridQid.__slots__ = ('_dimension',)` for qudits (80 bytes).
+  4. Implement dynamic `_BaseGridQid._comparison_key(self)` returning `(self._row, self._col)` without allocating `self._comp_key` in an instance slot.
+  5. Strip `inst._dimension = 2` and `inst._comp_key = None` from `GridQubit.__new__`, reducing instantiation to 3 fast slot assignments (`_row`, `_col`, `_hash`).
 - **Target Metrics**:
   - `cirq.GridQubit(r, c)` instantiation latency drops from **1,420.34 ns** to **< 800 ns** (>1.75x speedup).
-  - Per-instance memory overhead reduced by 16 bytes.
-  - 100% test pass on `cirq-core/cirq/devices/grid_qubit_test.py`.
+  - Per-instance memory overhead reduced by 16 bytes per `GridQubit` (18.2% memory savings).
+  - 100% test pass on `cirq-core/cirq/devices/grid_qubit_test.py` and `json_serialization_test.py`.
 
 #### Execution Workflow:
 1. **Create Feature Branch**:
@@ -976,31 +981,42 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 
 ---
 
-### Task 1.6.3: Fast-Path Symmetric 2Q Gate Equality with `_is_symmetric_2q` Trait `[PHASE 1.6 - TRACK FIX-EQ: PARALLEL]`
+### Task 1.6.3: Fast-Path Symmetric 2Q Gate Equality with `_is_symmetric_2q` Trait & Hash Coupling `[PHASE 1.6 - TRACK FIX-EQ: PARALLEL]`
 - **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run concurrently with Tasks 1.6.1, 1.6.2, 1.6.4 (Touches only gate_operation.py and common_gates.py)**
 - **Dependencies**: Phase 1.5 Complete
 - **Target Files**:
-  - `cirq-core/cirq/ops/gate_operation.py` (`GateOperation.__eq__`)
+  - `cirq-core/cirq/ops/raw_types.py` (`Gate._is_symmetric_2q`, `Gate._is_interchangeable`)
+  - `cirq-core/cirq/ops/gate_operation.py` (`GateOperation.__eq__`, `GateOperation._group_interchangeable_qubits`)
   - `cirq-core/cirq/ops/gate_features.py` (`InterchangeableQubitsGate`)
-  - `cirq-core/cirq/ops/common_gates.py` (`CZPowGate`, `SwapPowGate`, `ISwapPowGate`, `ZZPowGate`)
+  - `cirq-core/cirq/ops/common_gates.py` (`CZPowGate`)
+  - `cirq-core/cirq/ops/swap_gates.py` (`SwapPowGate`, `ISwapPowGate`)
+  - `cirq-core/cirq/ops/parity_gates.py` (`ZZPowGate`, `XXPowGate`, `YYPowGate`)
+  - `cirq-core/cirq/ops/fsim_gate.py` (`FSimGate`)
 - **Problem Statement & Root Cause**:
   - `CZ(0,1) == CZ(1,0)` equality latency slowed down by 2.68x (from 433 ns to **1,161.65 ns**).
   - In `GateOperation.__eq__`, checking symmetric operations executes `isinstance(self._gate, gate_features.InterchangeableQubitsGate)` which invokes slow ABC `__instancecheck__` and `_abc_instancecheck` on every single equality query.
   - It then executes two dynamic method calls `qubit_index_to_equivalence_group_key(0)` and `(1)`, followed by item-by-item `LineQubit.__eq__` evaluations.
 - **Implementation Plan**:
-  1. Add a fast boolean trait `_is_symmetric_2q: bool = True` on built-in symmetric 2-qubit gates (`CZPowGate`, `SwapPowGate`, `ISwapPowGate`, `ZZPowGate`, `XXPowGate`, `YYPowGate`).
-  2. In `GateOperation.__eq__`, fast-path 2-qubit symmetric equality via inlined tuple swap check:
+  1. Add traits `_is_symmetric_2q: bool = False` and `_is_interchangeable: bool = False` to `Gate` base class in `raw_types.py`.
+  2. Set `_is_symmetric_2q = True` on unconditionally symmetric 2-qubit gates: `CZPowGate`, `SwapPowGate`, `ISwapPowGate`, `ZZPowGate`, `XXPowGate`, `YYPowGate`, `FSimGate`.
+  3. Keep `_is_symmetric_2q = False` on conditionally symmetric gates (`PhasedFSimGate`, `PauliInteractionGate`) and asymmetric gates (`CXPowGate`, `CYPowGate`, `ControlledGate`).
+  4. In `GateOperation.__eq__`, fast-path 2-qubit symmetric equality via C-level pointer-accelerated tuple swap:
      ```python
-     if getattr(self._gate, '_is_symmetric_2q', False) and (self._gate is other._gate or self._gate == other._gate):
+     if self._qubits is other._qubits or self._qubits == other._qubits:
+         return self._gate is other._gate or self._gate == other._gate
+     if getattr(self._gate, '_is_symmetric_2q', False):
          if len(self._qubits) == 2 and len(other._qubits) == 2:
-             return self._qubits == (other._qubits[1], other._qubits[0])
+             if self._qubits == (other._qubits[1], other._qubits[0]):
+                 return self._gate is other._gate or self._gate == other._gate
+             return False
      ```
-  3. Replace the ABC `isinstance(..., InterchangeableQubitsGate)` with an attribute check `getattr(self._gate, '_is_interchangeable', False)` for arbitrary n-qubit interchangeable gates.
+  5. **Hashing Consistency Guarantee**: Update `GateOperation._group_interchangeable_qubits` to check `if getattr(self._gate, '_is_symmetric_2q', False) and len(self._qubits) == 2: return ((0, frozenset(self._qubits)),)` ensuring that `op1 == op2 ==> hash(op1) == hash(op2)` holds mathematically for `dict` keys and `set` deduplication.
 - **Target Metrics**:
-  - Symmetric 2Q equality latency (`CZ(0,1) == CZ(1,0)`) drops from **1,161.65 ns** to **< 80 ns** (>14x speedup).
+  - Symmetric 2Q equality latency (`CZ(0,1) == CZ(1,0)`) drops from **1,161.65 ns** to **< 80 ns** (>14x to 23x speedup).
+  - 100% hash invariant preservation (`hash(CZ(q0, q1)) == hash(CZ(q1, q0))`).
   - 100% test pass on `cirq-core/cirq/ops/gate_operation_test.py` and `cirq-core/cirq/ops/common_gates_test.py`.
 
 #### Execution Workflow:
@@ -1009,7 +1025,7 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
    git fetch origin
    git checkout -b fix-fast-symmetric-equality origin/main
    ```
-2. **Do Changes (Implementation)**: Edit `gate_operation.py`, `gate_features.py`, and `common_gates.py`.
+2. **Do Changes (Implementation)**: Edit `gate_operation.py`, `gate_features.py`, `common_gates.py`, `swap_gates.py`, `parity_gates.py`, `fsim_gate.py`.
 3. **Run Tests, Linting & Format Checks**:
    ```bash
    pytest cirq-core/cirq/ops/gate_operation_test.py cirq-core/cirq/ops/common_gates_test.py -v
@@ -1040,18 +1056,19 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 - **Concurrency**: **Can run concurrently with Tasks 1.6.1, 1.6.2, 1.6.3 (Touches only circuit.py)**
 - **Dependencies**: Phase 1.5 Complete
 - **Target Files**:
-  - `cirq-core/cirq/circuits/circuit.py` (`Circuit.__init__`, `_from_moments`, `_PlacementCache.append`)
+  - `cirq-core/cirq/circuits/circuit.py` (`Circuit.__init__`, `_from_moments`, `_PlacementCache.append`, `_load_contents_with_earliest_strategy`)
 - **Problem Statement & Root Cause**:
-  - `Circuit.__init__` unconditionally instantiates `self._placement_cache = _PlacementCache()`, allocating 3 tracking dictionaries (`_qubit_indices`, `_mkey_indices`, `_ckey_indices`) on every circuit creation, even when circuits are constructed from pre-existing moments or never use `InsertStrategy.EARLIEST`.
-  - In `_PlacementCache.append`, appending a `Moment` iterates over every qubit and updates `_qubit_indices[qubit] = mop_index` (2,000 dict writes per moment $\times$ 1,000 moments = 2,000,000 dict writes), adding slight latency during direct moment appends.
+  - `Circuit.__init__` unconditionally instantiates `self._placement_cache = _PlacementCache()`, allocating 3 tracking dictionaries (`_qubit_indices`, `_mkey_indices`, `_ckey_indices`) on every circuit creation (432 B per instance), even when circuits are constructed from pre-existing moments or never use `InsertStrategy.EARLIEST`.
+  - In `_PlacementCache.append`, appending a `Moment` iterates over every qubit and updates `_qubit_indices[qubit] = mop_index` (2,000 dict writes per moment $\times$ 1,000 moments = 2,000,000 dict writes), adding latency during bulk moment construction.
 - **Implementation Plan**:
-  1. Defer `_PlacementCache` allocation: initialize `self._placement_cache = None` in `Circuit.__init__`.
-  2. Instantiate `_PlacementCache` lazily ONLY when an operation is appended using `strategy=InsertStrategy.EARLIEST`.
-  3. For direct moment appends (`strategy=InsertStrategy.NEW`), append directly to `self._moments` in $O(1)$ and update `_PlacementCache._length` without scanning/writing individual qubit dictionaries until subsequent non-moment ops are appended.
+  1. Defer `_PlacementCache` allocation: initialize `self._placement_cache = None` in `Circuit.__init__`, dropping empty/sliced circuit footprint from 432 B to **176 B** (59.2% memory savings).
+  2. In `_load_contents_with_earliest_strategy()`, initialize `if self._placement_cache is None: self._placement_cache = _PlacementCache()`.
+  3. For direct moment appends (`strategy=InsertStrategy.NEW` or `_placement_cache is None`), append directly to `self._moments` in $O(1)$ without scanning/writing individual qubit dictionaries until subsequent non-moment ops are appended with `EARLIEST`.
+  4. Ensure `_from_moments()`, `copy()`, and slicing continue to set `_placement_cache = None` for zero waste.
 - **Target Metrics**:
-  - Repeated circuit memory overhead drops from **0.74 MB** to **< 0.10 MB** (>7x reduction).
-  - Direct moment append latency reduced to pure list append overhead (< 100 ms for 2,000q x 1,000m).
-  - 100% test pass on `cirq-core/cirq/circuits/circuit_test.py`.
+  - Empty and sliced circuit memory overhead drops from **432 B** to **176 B** (59.2% memory reduction).
+  - Bulk moment append throughput accelerated by **>100x** (0.20 ms vs 25.1 ms for 500 moments).
+  - 100% test pass on `cirq-core/cirq/circuits/circuit_test.py` (8,677 tests).
 
 #### Execution Workflow:
 1. **Create Feature Branch**:
