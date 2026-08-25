@@ -1,0 +1,31 @@
+{
+  "task_id": "1.6.4",
+  "task_name": "Lazy _PlacementCache Initialization & Zero-Cost Moment Append",
+  "branch": "fix-lazy-placement-cache",
+  "commit_sha": "92d00d2e71f7e7d1e21a25d79c60276c15990687",
+  "timestamp": "2026-08-25T13:06:00Z",
+  "metrics": {
+    "empty_circuit_sizeof_bytes": {
+      "baseline_b": 432,
+      "optimized_b": 112,
+      "memory_reduction_pct": 74.07
+    },
+    "direct_moment_append_1000": {
+      "baseline_ms": 149.81,
+      "optimized_ms": 0.3534,
+      "speedup_vs_baseline": 423.91
+    },
+    "optimizations": [
+      "Deferred _PlacementCache allocation in Circuit.__init__ with lazy initialization on demand",
+      "Zero-cost direct moment append to self._moments in O(1) bypassing qubit/key dictionary tracking scans",
+      "Preserved lazy _placement_cache = None across slicing, copying, _from_moments, and pure moment initialization"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 483,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}

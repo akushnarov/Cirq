@@ -1050,7 +1050,15 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 ---
 
 ### Task 1.6.4: Lazy `_PlacementCache` Initialization & Zero-Cost Moment Append `[PHASE 1.6 - TRACK FIX-CACHE: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 92d00d2e71f7e7d1e21a25d79c60276c15990687)`
+- **Results**:
+  - Direct single/bulk Moment append ($2,000\text{ qubits} \times 1,000\text{ moments}$) latency: **0.353 ms** (baseline: **149.81 ms**, **423.9x speedup**).
+  - Empty circuit memory footprint: **112 B** (baseline: **432 B**, **74.1% memory reduction**).
+  - Deferred `_PlacementCache` instantiation: `self._placement_cache` initialized to `None` in `Circuit.__init__` and lazily populated only when non-moment operations are appended or loaded with `EARLIEST`.
+  - Zero-cost direct moment append to `self._moments` in $O(1)$ without scanning/writing individual qubit dictionaries until subsequent non-moment ops are appended.
+  - Slicing, copying, `_from_moments`, and pure moment initialization preserved with zero cache allocation overhead (`_placement_cache = None`).
+  - Unit tests: 483 passed (100% incremental line coverage on touched files, 0 regressions).
+  - Tracking Record: `benchmarks/tracking/task_1_6_4_92d00d2e71f7e7d1e21a25d79c60276c15990687.json`.
 - **Priority**: `P1`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run concurrently with Tasks 1.6.1, 1.6.2, 1.6.3 (Touches only circuit.py)**
