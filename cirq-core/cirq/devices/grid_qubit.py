@@ -32,12 +32,11 @@ if TYPE_CHECKING:
 class _BaseGridQid(ops.Qid):
     """The Base class for `GridQid` and `GridQubit`."""
 
-    __slots__ = ('_row', '_col', '_dimension', '_comp_key', '_hash')
+    __slots__ = ('_row', '_col', '_hash')
 
     _row: int
     _col: int
     _dimension: int
-    _comp_key: tuple[int, int] | None
     _hash: int
 
     def __hash__(self) -> int:
@@ -104,9 +103,7 @@ class _BaseGridQid(ops.Qid):
         return super().__gt__(other)
 
     def _comparison_key(self):
-        if self._comp_key is None:
-            self._comp_key = self._row, self._col
-        return self._comp_key
+        return self._row, self._col
 
     @property
     def row(self) -> int:
@@ -226,7 +223,9 @@ class GridQid(_BaseGridQid):
     cirq.GridQid(5, 4, dimension=2)
     """
 
-    __slots__ = ()
+    __slots__ = ('_dimension',)
+
+    _dimension: int
 
     # Cache of existing GridQid instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
@@ -250,7 +249,6 @@ class GridQid(_BaseGridQid):
             inst._row = row
             inst._col = col
             inst._dimension = dimension
-            inst._comp_key = None
             inst._hash = ((dimension - 2) * 1_000_003 + hash(col)) * 1_000_003 + hash(row)
             cls._cache[key] = inst
         return inst
@@ -394,6 +392,7 @@ class GridQubit(_BaseGridQid):
     """
 
     __slots__ = ()
+    _dimension: int = 2
 
     # Cache of existing GridQubit instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
@@ -412,8 +411,6 @@ class GridQubit(_BaseGridQid):
             inst = super().__new__(cls)
             inst._row = row
             inst._col = col
-            inst._dimension = 2
-            inst._comp_key = None
             inst._hash = hash(col) * 1_000_003 + hash(row)
             cls._cache[key] = inst
         return inst

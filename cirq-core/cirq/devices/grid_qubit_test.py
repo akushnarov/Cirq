@@ -16,7 +16,9 @@
 
 from __future__ import annotations
 
+import gc
 import pickle
+import weakref
 
 import numpy as np
 import pytest
@@ -415,3 +417,80 @@ def test_non_integer_index(dtype) -> None:
     assert q.col == 6.5
     assert isinstance(q.row, dtype)
     assert isinstance(q.col, dtype)
+
+
+def test_slots_and_lean_layout() -> None:
+    from cirq.devices.grid_qubit import _BaseGridQid
+
+    assert _BaseGridQid.__slots__ == ('_row', '_col', '_hash')
+    assert cirq.GridQubit.__slots__ == ()
+    assert cirq.GridQid.__slots__ == ('_dimension',)
+
+    q = cirq.GridQubit(10, 20)
+    qid = cirq.GridQid(10, 20, dimension=3)
+
+    assert not hasattr(q, '__dict__')
+    assert not hasattr(qid, '__dict__')
+
+    # Verify class attribute on GridQubit
+    assert cirq.GridQubit._dimension == 2
+    assert q._dimension == 2
+    assert q.dimension == 2
+    assert qid.dimension == 3
+
+    # Dynamic comparison key
+    assert q._comparison_key() == (10, 20)
+    assert qid._comparison_key() == (10, 20)
+
+
+def test_cross_type_comparison() -> None:
+    q = cirq.GridQubit(0, 1)
+    qid2 = cirq.GridQid(0, 1, dimension=2)
+    qid3 = cirq.GridQid(0, 1, dimension=3)
+    line_q = cirq.LineQubit(0)
+    named_q = cirq.NamedQubit('a')
+
+    # Equality across identical dimension GridQid and GridQubit
+    assert q == qid2
+    assert q != qid3
+    assert q != line_q
+    assert q != named_q
+
+    # Ordering
+    assert q < qid3
+    assert not (qid3 < q)
+    assert qid2 <= q
+    assert q <= qid2
+
+
+def test_weakref_gc_lifecycle() -> None:
+    # Use unique coordinates to test cache lifecycle
+    row, col = 99999, 88888
+    key = (row, col)
+
+    # Clean cache if present
+    cirq.GridQubit._cache.pop(key, None)
+
+    q = cirq.GridQubit(row, col)
+    ref = weakref.ref(q)
+    assert key in cirq.GridQubit._cache
+    assert ref() is q
+
+    del q
+    gc.collect()
+    assert ref() is None
+    assert key not in cirq.GridQubit._cache
+
+    # Same for GridQid
+    qid_key = (row, col, 4)
+    cirq.GridQid._cache.pop(qid_key, None)
+
+    qid = cirq.GridQid(row, col, dimension=4)
+    qid_ref = weakref.ref(qid)
+    assert qid_key in cirq.GridQid._cache
+    assert qid_ref() is qid
+
+    del qid
+    gc.collect()
+    assert qid_ref() is None
+    assert qid_key not in cirq.GridQid._cache
