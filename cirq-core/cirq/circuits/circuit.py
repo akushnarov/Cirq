@@ -1868,7 +1868,7 @@ class Circuit(AbstractCircuit):
                 resulting circuit to be eventually serialized into JSON, you should
                 also restrict the tags to be JSON serializable.
         """
-        self._placement_cache: _PlacementCache | None = _PlacementCache()
+        self._placement_cache: _PlacementCache | None = None
         self._moments: list[cirq.Moment] = []
         self._tags = tuple(tags)
 
@@ -1951,7 +1951,9 @@ class Circuit(AbstractCircuit):
                 insertion strategy.
         """
         # PlacementCache holds dicts from the qubit/key to the greatest moment index that has it.
-        placement_cache = cast(_PlacementCache, self._placement_cache)
+        if self._placement_cache is None:
+            self._placement_cache = _PlacementCache()
+        placement_cache = self._placement_cache
 
         # We also maintain the dict from moment index to moments/ops that go into it, for use when
         # building the actual moments at the end.
@@ -2685,7 +2687,9 @@ class Circuit(AbstractCircuit):
         """
         # Fast path 1: Appending a single Moment
         if isinstance(moment_or_operation_tree, Moment):
-            if self._placement_cache is not None:
+            if strategy is InsertStrategy.NEW:
+                self._placement_cache = None
+            elif self._placement_cache is not None:
                 self._placement_cache.append(moment_or_operation_tree)
             self._moments.append(moment_or_operation_tree)
             self._mutated(preserve_placement_cache=True)
@@ -2694,8 +2698,7 @@ class Circuit(AbstractCircuit):
         # Fast path 2: Appending a single Operation
         if isinstance(moment_or_operation_tree, ops.Operation):
             if strategy is InsertStrategy.NEW:
-                if self._placement_cache is not None:
-                    self._placement_cache.append(moment_or_operation_tree)
+                self._placement_cache = None
                 self._moments.append(Moment(moment_or_operation_tree))
                 self._mutated(preserve_placement_cache=True)
                 return
@@ -2715,20 +2718,14 @@ class Circuit(AbstractCircuit):
             flat_items = tuple(ops.flatten_to_ops_or_moments(moment_or_operation_tree))
             if not flat_items:
                 return
+            self._placement_cache = None
             if all(isinstance(m, Moment) for m in flat_items):
-                for m in flat_items:
-                    if self._placement_cache is not None:
-                        self._placement_cache.append(m)
-                    self._moments.append(cast(Moment, m))
+                self._moments.extend(cast(Iterable[Moment], flat_items))
             else:
                 for item in flat_items:
                     if isinstance(item, Moment):
-                        if self._placement_cache is not None:
-                            self._placement_cache.append(item)
                         self._moments.append(item)
                     else:
-                        if self._placement_cache is not None:
-                            self._placement_cache.append(item)
                         self._moments.append(Moment(cast(ops.Operation, item)))
             self._mutated(preserve_placement_cache=True)
             return

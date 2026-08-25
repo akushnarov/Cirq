@@ -5269,3 +5269,47 @@ def test_placement_cache_get_earliest_accommodating_moment_index_direct() -> Non
         length=None,
     )
     assert idx == 4
+
+
+def test_lazy_placement_cache_and_direct_moment_append() -> None:
+    q0, q1 = cirq.LineQubit.range(2)
+    mom = cirq.Moment(cirq.X(q0), cirq.Y(q1))
+
+    # 1. Empty circuit has _placement_cache is None
+    c = cirq.Circuit()
+    assert c._placement_cache is None
+
+    # 2. Appending single Moment keeps _placement_cache is None
+    c.append(mom)
+    assert c._placement_cache is None
+    assert len(c) == 1
+
+    # 3. Appending multiple Moments (strategy=NEW or EARLIEST) keeps _placement_cache is None
+    c.append([mom, mom], strategy=cirq.InsertStrategy.NEW)
+    assert c._placement_cache is None
+    assert len(c) == 3
+
+    # 4. Slicing, copy, and _from_moments have _placement_cache is None
+    c_slice = c[1:3]
+    assert c_slice._placement_cache is None
+    c_copy = c.copy()
+    assert c_copy._placement_cache is None
+    c_from = cirq.Circuit._from_moments([mom], tags=())
+    assert c_from._placement_cache is None
+
+    # 5. Circuit init with pure Moments keeps _placement_cache is None
+    c_mom_init = cirq.Circuit(mom, mom)
+    assert c_mom_init._placement_cache is None
+
+    # 6. Circuit init with operations initializes _placement_cache lazily
+    c_ops_init = cirq.Circuit(cirq.X(q0), cirq.Y(q1))
+    assert c_ops_init._placement_cache is not None
+
+    # 7. Appending an operation to circuit with _placement_cache is None lazily rebuilds it
+    c_hybrid = cirq.Circuit()
+    c_hybrid.append(mom)
+    assert c_hybrid._placement_cache is None
+    c_hybrid.append(cirq.Z(q0))
+    assert c_hybrid._placement_cache is not None
+    assert len(c_hybrid) == 2
+    assert c_hybrid[1] == cirq.Moment(cirq.Z(q0))
