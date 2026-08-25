@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import abc
 import cmath
 import math
 import numbers
@@ -99,8 +100,18 @@ document(
 )
 
 
+_UNIT_COMPLEX: complex = 1 + 0j
+
+
 @value.value_equality(approximate=True, manual_cls=True)
 class PauliString(raw_types.Operation, Generic[TKey]):
+    __slots__ = ()
+
+    def __new__(cls, *args, **kwargs):
+        if cls is PauliString:
+            return object.__new__(_MultiQubitPauliString)
+        return object.__new__(cls)
+
     """Represents a multi-qubit pauli operator or pauli observable.
 
     `cirq.PauliString` represents a multi-qubit pauli operator, i.e.
@@ -221,7 +232,16 @@ class PauliString(raw_types.Operation, Generic[TKey]):
 
     def equal_up_to_coefficient(self, other: cirq.PauliString) -> bool:
         """Returns true of `self` and `other` are equal pauli strings, ignoring the coefficient."""
-        return self._qubit_pauli_map == other._qubit_pauli_map
+        if not isinstance(other, PauliString):
+            return False
+        if len(self) != len(other):
+            return False
+        if len(self) == 1:
+            q = next(iter(self.qubits))
+            return self.get(q) == other.get(q)
+        if isinstance(self, _MultiQubitPauliString) and isinstance(other, _MultiQubitPauliString):
+            return self._qubit_pauli_map == other._qubit_pauli_map
+        return dict(self.items()) == dict(other.items())
 
     def __getitem__(self, key: TKey) -> pauli_gates.Pauli:
         return self._qubit_pauli_map[key]
@@ -325,9 +345,9 @@ class PauliString(raw_types.Operation, Generic[TKey]):
         return self._qubit_pauli_map.keys()
 
     @property
+    @abc.abstractmethod
     def qubits(self) -> tuple[TKey, ...]:
         """Returns a tuple of qubits on which this pauli string acts."""
-        return tuple(self.keys())
 
     def _circuit_diagram_info_(self, args: cirq.CircuitDiagramInfoArgs) -> list[str]:
         if not len(self._qubit_pauli_map):
@@ -350,27 +370,9 @@ class PauliString(raw_types.Operation, Generic[TKey]):
         symbols[0] = f'PauliString({prefix}{symbols[0]})'
         return symbols
 
+    @abc.abstractmethod
     def with_qubits(self, *new_qubits: cirq.Qid) -> PauliString:
-        """Returns a new `PauliString` with `self.qubits` mapped to `new_qubits`.
-
-        Args:
-            new_qubits: The new qubits to replace `self.qubits` by.
-
-        Returns:
-            `PauliString` with mapped qubits.
-
-        Raises:
-            ValueError: If `len(new_qubits) != len(self.qubits)`.
-        """
-        if len(new_qubits) != len(self.qubits):
-            raise ValueError(
-                f'Number of new qubits: {len(new_qubits)} does not match '
-                f'self.qubits: {len(self.qubits)}.'
-            )
-        return PauliString(
-            qubit_pauli_map=dict(zip(new_qubits, (self[q] for q in self.qubits))),
-            coefficient=self._coefficient,
-        )
+        """Returns a new `PauliString` with `self.qubits` mapped to `new_qubits`."""
 
     def with_coefficient(self, new_coefficient: cirq.TParamValComplex) -> PauliString:
         """Returns a new `PauliString` with `self.coefficient` replaced with `new_coefficient`."""
@@ -1102,6 +1104,31 @@ class PauliString(raw_types.Operation, Generic[TKey]):
         return PauliString(qubit_pauli_map=self._qubit_pauli_map, coefficient=coefficient)
 
 
+class _MultiQubitPauliString(PauliString[TKey]):
+    """Internal concrete implementation of a multi-qubit PauliString."""
+
+    __slots__ = ('_qubit_pauli_map', '_coefficient')
+
+    @property
+    def qubits(self) -> tuple[TKey, ...]:
+        return tuple(self.keys())
+
+    def with_qubits(self, *new_qubits: cirq.Qid) -> PauliString:
+        if len(new_qubits) != len(self.qubits):
+            raise ValueError(
+                f'Number of new qubits: {len(new_qubits)} does not match '
+                f'self.qubits: {len(self.qubits)}.'
+            )
+        return PauliString(
+            qubit_pauli_map=dict(zip(new_qubits, (self[q] for q in self.qubits))),
+            coefficient=self._coefficient,
+        )
+
+
+_MultiQubitPauliString.__name__ = 'PauliString'
+_MultiQubitPauliString.__qualname__ = 'PauliString'
+
+
 def _validate_qubit_mapping(
     qubit_map: Mapping[TKey, int], pauli_qubits: tuple[TKey, ...], num_state_qubits: int
 ) -> None:
@@ -1180,25 +1207,89 @@ class SingleQubitPauliStringGateOperation(  # type: ignore[misc]
     GateOperation(X, [q]).
     """
 
+    __slots__ = ()
+
     def __init__(self, pauli: pauli_gates.Pauli, qubit: cirq.Qid):
-        PauliString.__init__(self, qubit_pauli_map={qubit: pauli})
-        gate_operation.GateOperation.__init__(self, cast(raw_types.Gate, pauli), [qubit])
+        if _compat.__cirq_debug__.get():
+            if not isinstance(pauli, pauli_gates.Pauli):
+                raise TypeError(f'{pauli!r} is not a cirq.Pauli')
+            if not isinstance(qubit, raw_types.Qid):
+                raise TypeError(f'{qubit!r} is not a cirq.Qid')
+        self._gate = pauli
+        self._qubits = (qubit,)
+
+    @property
+    def coefficient(self) -> complex:
+        return _UNIT_COMPLEX
+
+    @property
+    def _coefficient(self) -> complex:
+        return _UNIT_COMPLEX
+
+    @property
+    def _qubit_pauli_map(self) -> dict[raw_types.Qid, pauli_gates.Pauli]:
+        return {self._qubits[0]: cast(pauli_gates.Pauli, self._gate)}
+
+    def __getitem__(self, key: Any) -> pauli_gates.Pauli:
+        if key == self._qubits[0]:
+            return cast(pauli_gates.Pauli, self._gate)
+        raise KeyError(key)
+
+    @overload
+    def get(self, key: Any, default: None = None) -> pauli_gates.Pauli | None:
+        pass
+
+    @overload
+    def get(self, key: Any, default: TDefault) -> pauli_gates.Pauli | TDefault:
+        pass
+
+    def get(self, key: Any, default: TDefault | None = None) -> pauli_gates.Pauli | TDefault | None:
+        if key == self._qubits[0]:
+            return cast(pauli_gates.Pauli, self._gate)
+        return default
+
+    def __contains__(self, key: Any) -> bool:
+        return key == self._qubits[0]
+
+    def __len__(self) -> int:
+        return 1
+
+    def __bool__(self) -> bool:
+        return True
+
+    def __iter__(self) -> Iterator[raw_types.Qid]:
+        return iter(self._qubits)
+
+    def keys(self) -> KeysView[raw_types.Qid]:
+        return {self._qubits[0]: cast(pauli_gates.Pauli, self._gate)}.keys()
+
+    def values(self) -> ValuesView[pauli_gates.Pauli]:
+        return {self._qubits[0]: cast(pauli_gates.Pauli, self._gate)}.values()
+
+    def items(self) -> ItemsView[raw_types.Qid, pauli_gates.Pauli]:
+        return {self._qubits[0]: cast(pauli_gates.Pauli, self._gate)}.items()
+
+    def equal_up_to_coefficient(self, other: cirq.PauliString) -> bool:
+        if isinstance(other, SingleQubitPauliStringGateOperation):
+            return self._qubits[0] == other._qubits[0] and self._gate == other._gate
+        if isinstance(other, PauliString) and len(other) == 1:
+            return other.get(self._qubits[0]) == self._gate
+        return False
 
     def with_qubits(self, *new_qubits: cirq.Qid) -> SingleQubitPauliStringGateOperation:
         if len(new_qubits) != 1:
             raise ValueError("len(new_qubits) != 1")
         return SingleQubitPauliStringGateOperation(
-            cast(pauli_gates.Pauli, self.gate), new_qubits[0]
+            cast(pauli_gates.Pauli, self._gate), new_qubits[0]
         )
 
     @property
     def pauli(self) -> pauli_gates.Pauli:
-        return cast(pauli_gates.Pauli, self.gate)
+        return cast(pauli_gates.Pauli, self._gate)
 
     @property
     def qubit(self) -> raw_types.Qid:
-        assert len(self.qubits) == 1
-        return self.qubits[0]
+        return self._qubits[0]
 
     def __mul__(self, other):
         return PauliString.__mul__(self, other)
@@ -1210,20 +1301,20 @@ class SingleQubitPauliStringGateOperation(  # type: ignore[misc]
         return {'pauli': self.pauli, 'qubit': self.qubit}
 
     def __setstate__(self, state: dict[str, Any]) -> None:
-        self.__init__(state['pauli'], state['qubit'])
+        self._gate = state['pauli']
+        self._qubits = (state['qubit'],)
 
     def _json_dict_(self) -> dict[str, Any]:
         return protocols.obj_to_dict_helper(self, ['pauli', 'qubit'])
 
     @classmethod
     def _from_json_dict_(cls, pauli: pauli_gates.Pauli, qubit: cirq.Qid, **kwargs):  # type: ignore[override]
-        # Note, this method is required or else superclasses' deserialization
-        # would be used
         return cls(pauli=pauli, qubit=qubit)
 
 
 @value.value_equality(unhashable=True, manual_cls=True, approximate=True)
 class MutablePauliString(Generic[TKey]):
+    __slots__ = ('coefficient', 'pauli_int_dict', '__weakref__')
     """Mutable version of `cirq.PauliString`, used mainly for efficiently mutating pauli strings.
 
     `cirq.MutablePauliString` is a mutable version of `cirq.PauliString`, which is often

@@ -230,3 +230,13 @@ def test_powers() -> None:
         assert cirq.Y ** 'text'
     with pytest.raises(TypeError, match="Gate exponent must be a number or sympy expression."):
         assert cirq.Z ** 'text'
+
+
+def test_pauli_call_invalid_target() -> None:
+    q0, q1 = cirq.LineQubit.range(2)
+    with pytest.raises(ValueError):
+        _ = cirq.X(q0, q1)
+    with pytest.raises(ValueError):
+        _ = cirq.Y(q0, q1)
+    with pytest.raises(ValueError):
+        _ = cirq.Z(q0, q1)

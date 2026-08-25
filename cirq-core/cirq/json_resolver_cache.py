@@ -184,7 +184,7 @@ def _class_resolver_dictionary() -> dict[str, ObjectFactory]:
         'ParallelGateFamily': cirq.ParallelGateFamily,
         'PauliInteractionGate': cirq.PauliInteractionGate,
         'PauliMeasurementGate': cirq.PauliMeasurementGate,
-        'PauliString': cirq.PauliString,
+        'PauliString': cirq.ops.pauli_string._MultiQubitPauliString,
         'PauliStringPhasor': cirq.PauliStringPhasor,
         'PauliStringPhasorGate': cirq.PauliStringPhasorGate,
         'PauliSum': cirq.PauliSum,

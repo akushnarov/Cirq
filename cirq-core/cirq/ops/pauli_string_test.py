@@ -2159,3 +2159,105 @@ def test_try_interpret_as_pauli_string() -> None:
     # non-Pauli operation
     h_gate = cirq.H(q)
     assert _try_interpret_as_pauli_string(h_gate) is None
+
+
+def test_single_qubit_pauli_string_gate_operation_virtual_mapping_and_slots() -> None:
+    import pickle
+    from typing import Any, cast
+
+    from cirq.ops.pauli_string import SingleQubitPauliStringGateOperation
+
+    q0, q1, q2 = cirq.LineQubit.range(3)
+    op = cirq.X(q0)
+    assert isinstance(op, SingleQubitPauliStringGateOperation)
+    assert op.coefficient == 1 + 0j
+    assert op._coefficient == 1 + 0j
+    assert op.pauli == cirq.X
+    assert op.qubit == q0
+    assert op[q0] == cirq.X
+    with pytest.raises(KeyError):
+        _ = op[q1]
+    assert op.get(q0) == cirq.X
+    assert op.get(q1) is None
+    assert op.get(q1, 'default') == 'default'
+    assert q0 in op
+    assert q1 not in op
+    assert len(op) == 1
+    assert bool(op) is True
+    assert list(iter(op)) == [q0]
+    assert list(op.keys()) == [q0]
+    assert list(op.values()) == [cirq.X]
+    assert list(op.items()) == [(q0, cirq.X)]
+    assert op._qubit_pauli_map == {q0: cirq.X}
+
+    # with_qubits
+    assert op.with_qubits(q1) == cirq.X(q1)
+    with pytest.raises(ValueError, match=r"len\(new_qubits\) != 1"):
+        op.with_qubits(q0, q1)
+
+    # equal_up_to_coefficient
+    assert op.equal_up_to_coefficient(cirq.X(q0))
+    assert not op.equal_up_to_coefficient(cirq.Y(q0))
+    assert not op.equal_up_to_coefficient(cirq.X(q1))
+    assert op.equal_up_to_coefficient(cirq.PauliString({q0: cirq.X}, coefficient=2))
+    assert not op.equal_up_to_coefficient(cirq.PauliString({q0: cirq.Y}, coefficient=2))
+    assert not op.equal_up_to_coefficient(cirq.PauliString({q0: cirq.X, q1: cirq.Y}))
+    assert not op.equal_up_to_coefficient(cast(Any, "not a pauli string"))
+
+    # Custom PauliString subclass to hit fallback in equal_up_to_coefficient
+    class CustomPauliString(cirq.PauliString):
+        def __init__(self, mapping):
+            self._map = dict(mapping)
+
+        @property
+        def qubits(self):
+            return tuple(self._map.keys())
+
+        def with_qubits(self, *new_qubits):
+            return CustomPauliString(zip(new_qubits, self._map.values()))
+
+        def __getitem__(self, key):
+            return self._map[key]
+
+        def get(self, key, default=None):
+            return self._map.get(key, default)
+
+        def items(self):
+            return self._map.items()
+
+        def __len__(self):
+            return len(self._map)
+
+    ps = cirq.PauliString({q0: cirq.X, q1: cirq.Y})
+    assert not ps.equal_up_to_coefficient(cast(Any, "not a pauli string"))
+    assert not ps.equal_up_to_coefficient(cirq.PauliString({q0: cirq.X}))
+    assert ps.equal_up_to_coefficient(cirq.PauliString({q0: cirq.X, q1: cirq.Y}, coefficient=-1))
+    assert not ps.equal_up_to_coefficient(cirq.PauliString({q0: cirq.X, q1: cirq.Z}))
+    custom_ps = CustomPauliString({q0: cirq.X, q1: cirq.Y})
+    assert ps.equal_up_to_coefficient(custom_ps)
+    assert custom_ps.qubits == (q0, q1)
+    assert custom_ps[q0] == cirq.X
+    assert custom_ps.get(q0) == cirq.X
+    assert custom_ps.with_qubits(q1, q2).qubits == (q1, q2)
+    assert len(custom_ps) == 2
+
+    # Debug validation
+    token = cirq._compat.__cirq_debug__.set(True)
+    try:
+        with pytest.raises(TypeError, match="is not a cirq.Pauli"):
+            SingleQubitPauliStringGateOperation(cast(Any, 'not a pauli'), q0)
+        with pytest.raises(TypeError, match="is not a cirq.Qid"):
+            SingleQubitPauliStringGateOperation(cirq.X, cast(Any, 'not a qubit'))
+    finally:
+        cirq._compat.__cirq_debug__.reset(token)
+
+    # Pickle
+    pickled = pickle.dumps(op)
+    unpickled = pickle.loads(pickled)
+    assert unpickled == op
+    assert unpickled._gate == cirq.X
+    assert unpickled._qubits == (q0,)
+
+    # JSON from json dict
+    deserialized = SingleQubitPauliStringGateOperation._from_json_dict_(cirq.X, q0)
+    assert deserialized == op

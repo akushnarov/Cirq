@@ -90,6 +90,13 @@ class Pauli(raw_types.Gate, metaclass=abc.ABCMeta):
             return NotImplemented
         return (other._index - self._index) % 3 == 1
 
+    def __call__(self, *targets: cirq.Qid) -> SingleQubitPauliStringGateOperation:
+        if len(targets) == 1:
+            target = targets[0]
+            if isinstance(target, raw_types.Qid):
+                return pauli_string.SingleQubitPauliStringGateOperation(self, target)
+        return self.on(*targets)
+
     def on(self, *qubits: cirq.Qid) -> SingleQubitPauliStringGateOperation:
         """Returns an application of this gate to the given qubits.
 
@@ -99,10 +106,9 @@ class Pauli(raw_types.Gate, metaclass=abc.ABCMeta):
         Raises:
             ValueError: If more than one qubit is acted upon.
         """
-        if len(qubits) != 1:
-            raise ValueError(f'Expected a single qubit, got <{qubits!r}>.')
-
-        return pauli_string.SingleQubitPauliStringGateOperation(self, qubits[0])
+        if len(qubits) == 1:
+            return pauli_string.SingleQubitPauliStringGateOperation(self, qubits[0])
+        raise ValueError(f'Expected a single qubit, got <{qubits!r}>.')
 
 
 class _PauliX(Pauli, common_gates.XPowGate):
