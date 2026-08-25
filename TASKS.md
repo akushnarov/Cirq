@@ -926,7 +926,7 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 ---
 
 ### Task 1.6.2: Lean `GridQubit` Layout & Redundant Slot Stripping `[PHASE 1.6 - TRACK FIX-GRID: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 29c225cda39ba28c3721ec1da44161e9edce5018)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run concurrently with Tasks 1.6.1, 1.6.3, 1.6.4 (Touches only grid_qubit.py)**

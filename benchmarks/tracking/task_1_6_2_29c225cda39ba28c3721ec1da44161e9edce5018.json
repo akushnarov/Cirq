@@ -1,0 +1,34 @@
+{
+  "task_id": "1.6.2",
+  "task_name": "Lean GridQubit Layout & Redundant Slot Stripping",
+  "branch": "fix-lean-grid-qubit",
+  "commit_sha": "29c225cda39ba28c3721ec1da44161e9edce5018",
+  "timestamp": "2026-08-25T13:06:00Z",
+  "metrics": {
+    "grid_qubit_instance_size_bytes": {
+      "baseline_bytes": 88,
+      "optimized_bytes": 72,
+      "reduction_pct": 18.18
+    },
+    "grid_qid_instance_size_bytes": {
+      "baseline_bytes": 88,
+      "optimized_bytes": 80,
+      "reduction_pct": 9.09
+    },
+    "optimizations": [
+      "Refactored _BaseGridQid.__slots__ to ('_row', '_col', '_hash') (3 slots)",
+      "Set _dimension: int = 2 as class attribute on GridQubit with __slots__ = () (72 bytes)",
+      "Set GridQid.__slots__ = ('_dimension',) for qudits (80 bytes)",
+      "Dynamic _comparison_key returning (self._row, self._col) with zero slot storage overhead",
+      "Stripped redundant inst._dimension and inst._comp_key assignments from GridQubit.__new__"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 151,
+    "json_serialization_tests_passed": 854,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
