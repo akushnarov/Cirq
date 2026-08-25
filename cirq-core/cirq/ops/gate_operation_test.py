@@ -610,3 +610,54 @@ def test_gate_operation_measurement_keys_fast_path() -> None:
     assert op._measurement_key_names_() == frozenset()
     assert op._measurement_key_obj_() is NotImplemented
     assert op._measurement_key_objs_() == frozenset()
+
+
+def test_symmetric_2q_gate_operation_equality_and_hashing() -> None:
+    q0, q1, q2 = cirq.LineQubit.range(3)
+
+    symmetric_gates = [
+        cirq.CZ,
+        cirq.CZPowGate(exponent=0.5),
+        cirq.SWAP,
+        cirq.SwapPowGate(exponent=0.3),
+        cirq.ISWAP,
+        cirq.ISwapPowGate(exponent=0.7),
+        cirq.XX,
+        cirq.XXPowGate(exponent=0.25),
+        cirq.YY,
+        cirq.YYPowGate(exponent=0.6),
+        cirq.ZZ,
+        cirq.ZZPowGate(exponent=0.8),
+        cirq.FSimGate(theta=0.2, phi=0.3),
+    ]
+
+    for gate in symmetric_gates:
+        assert getattr(gate, '_is_symmetric_2q', False) is True
+        assert getattr(gate, '_is_interchangeable', False) is True
+        op1 = gate(q0, q1)
+        op2 = gate(q1, q0)
+        op3 = gate(q0, q2)
+
+        # Equality
+        assert op1 == op2
+        assert op2 == op1
+        assert op1 != op3
+        assert op2 != op3
+
+        # Hashing invariant
+        assert hash(op1) == hash(op2)
+        assert len({op1, op2}) == 1
+        assert len({op1, op2, op3}) == 2
+
+    # Asymmetric gates
+    asymmetric_gates = [
+        cirq.CNOT,
+        cirq.CXPowGate(exponent=0.5),
+        cirq.CYPowGate(exponent=0.5),
+        cirq.ControlledGate(cirq.X),
+    ]
+    for gate in asymmetric_gates:
+        assert getattr(gate, '_is_symmetric_2q', False) is False
+        op1 = gate(q0, q1)
+        op2 = gate(q1, q0)
+        assert op1 != op2

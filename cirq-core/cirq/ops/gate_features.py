@@ -23,6 +23,8 @@ from __future__ import annotations
 class InterchangeableQubitsGate:
     """Indicates operations should be equal under some qubit permutations."""
 
+    _is_interchangeable: bool = True
+
     def qubit_index_to_equivalence_group_key(self, index: int) -> int:
         """Returns a key that differs between non-interchangeable qubits."""
         return 0

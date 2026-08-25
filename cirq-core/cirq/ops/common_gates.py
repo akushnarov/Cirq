@@ -1041,6 +1041,7 @@ class HPowGate(eigen_gate.EigenGate):
 
 
 class CZPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate):
+    _is_symmetric_2q: bool = True
     r"""A gate that applies a phase to the |11⟩ state of two qubits.
 
     The unitary matrix of `CZPowGate(exponent=t)` is:

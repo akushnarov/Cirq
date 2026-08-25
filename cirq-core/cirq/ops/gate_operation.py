@@ -139,7 +139,11 @@ class GateOperation(raw_types.Operation):
     def _group_interchangeable_qubits(
         self,
     ) -> tuple[cirq.Qid | tuple[int, frozenset[cirq.Qid]], ...]:
-        if not isinstance(self._gate, gate_features.InterchangeableQubitsGate):
+        if getattr(self._gate, '_is_symmetric_2q', False) and len(self._qubits) == 2:
+            return ((0, frozenset(self._qubits)),)
+        if not getattr(self._gate, '_is_interchangeable', False) and not isinstance(
+            self._gate, gate_features.InterchangeableQubitsGate
+        ):
             return self._qubits
         num_qubits = len(self._qubits)
         if num_qubits == 0:
@@ -168,13 +172,17 @@ class GateOperation(raw_types.Operation):
         if self is other:
             return True
         if type(self) is type(other):
-            if (self._gate is other._gate or self._gate == other._gate) and (
-                self._qubits is other._qubits or self._qubits == other._qubits
-            ):
-                return True
-            if isinstance(self._gate, gate_features.InterchangeableQubitsGate) and (
-                self._gate is other._gate or self._gate == other._gate
-            ):
+            if self._qubits is other._qubits or self._qubits == other._qubits:
+                return self._gate is other._gate or self._gate == other._gate
+            if getattr(self._gate, '_is_symmetric_2q', False):
+                if len(self._qubits) == 2 and len(other._qubits) == 2:
+                    if self._qubits == (other._qubits[1], other._qubits[0]):
+                        return self._gate is other._gate or self._gate == other._gate
+                    return False
+            if (
+                getattr(self._gate, '_is_interchangeable', False)
+                or isinstance(self._gate, gate_features.InterchangeableQubitsGate)
+            ) and (self._gate is other._gate or self._gate == other._gate):
                 if len(self._qubits) == 2 and len(other._qubits) == 2:
                     k0 = self._gate.qubit_index_to_equivalence_group_key(0)
                     k1 = self._gate.qubit_index_to_equivalence_group_key(1)
