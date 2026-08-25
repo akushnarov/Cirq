@@ -2,7 +2,7 @@
   "task_id": "1.6.3",
   "task_name": "Fast-Path Symmetric 2Q Gate Equality (_is_symmetric_2q)",
   "branch": "fix-fast-symmetric-equality",
-  "commit_sha": "578d7a3fb258ee0ffd7044f11228e759ad307a9d",
+  "commit_sha": "100f7c20250d07190b540406b8aa122f46322fa9",
   "timestamp": "2026-08-25T13:10:35Z",
   "metrics": {
     "symmetric_cz_eq_latency_ns": {
