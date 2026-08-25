@@ -1,0 +1,28 @@
+{
+  "task_id": "1.6.3",
+  "task_name": "Fast-Path Symmetric 2Q Gate Equality (_is_symmetric_2q)",
+  "branch": "fix-fast-symmetric-equality",
+  "commit_sha": "578d7a3fb258ee0ffd7044f11228e759ad307a9d",
+  "timestamp": "2026-08-25T13:10:35Z",
+  "metrics": {
+    "symmetric_cz_eq_latency_ns": {
+      "regression_baseline_ns": 1161.65,
+      "optimized_ns": 64.6,
+      "speedup_vs_baseline": "18.0x",
+      "hash_invariant_verified": true
+    },
+    "optimizations": [
+      "Added _is_symmetric_2q and _is_interchangeable class traits on Gate and InterchangeableQubitsGate",
+      "Configured _is_symmetric_2q = True on unconditionally symmetric 2-qubit gates (CZPowGate, SwapPowGate, ISwapPowGate, XXPowGate, YYPowGate, ZZPowGate, FSimGate)",
+      "Implemented fast-path symmetric 2-qubit equality in GateOperation.__eq__ via pointer-accelerated tuple swap",
+      "Fast-pathed GateOperation._group_interchangeable_qubits to guarantee op1 == op2 ==> hash(op1) == hash(op2)"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 443,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
