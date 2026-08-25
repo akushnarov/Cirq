@@ -863,7 +863,11 @@ graph TD
 Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RESULTS_20260821_084810.md`), 4 critical micro-architectural bottlenecks and regressions were identified across object creation, equality, and memory allocation. Phase 1.6 systematically resolves these root causes to ensure 100% Pareto superiority before initiating Phase 2.
 
 ### Task 1.6.1: Universal `__slots__` & Lazy Dictionary Elimination on `SingleQubitPauliStringGateOperation` `[PHASE 1.6 - TRACK FIX-PAULI: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 27de5672e596c12da6971ab32e830c52461ad790)`
+- **Benchmark Results**:
+  - `cirq.X(q)` Instantiation Latency: **109.9 ns** (Baseline: 420.0 ns, **3.82x speedup**)
+  - 1M Ops Peak Heap Memory: **115.16 MB** (Baseline: 448.66 MB, **74.33% reduction**)
+  - CI Quality & Coverage: 100% pass on 482 unit tests and 854 JSON tests, 100% incremental line coverage.
 - **Priority**: `P0`
 - **Estimated Effort**: 1 day
 - **Concurrency**: **Can run concurrently with Tasks 1.6.2, 1.6.3, 1.6.4 (Touches only pauli_string.py and pauli_gates.py)**

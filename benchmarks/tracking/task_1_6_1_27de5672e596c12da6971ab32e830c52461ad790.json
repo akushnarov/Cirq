@@ -1,0 +1,37 @@
+{
+  "task_id": "1.6.1",
+  "task_name": "Slotted PauliString & Zero-Dict Flyweight SingleQubitPauliStringGateOperation",
+  "branch": "fix-slotted-pauli-string",
+  "commit_sha": "27de5672e596c12da6971ab32e830c52461ad790",
+  "timestamp": "2026-08-25T13:20:00Z",
+  "metrics": {
+    "x_qubit_instantiation_latency_ns": {
+      "baseline_ns": 420.0,
+      "optimized_ns": 109.9,
+      "speedup_factor": 3.82
+    },
+    "peak_memory_1m_ops_mb": {
+      "baseline_mb": 448.66,
+      "optimized_mb": 115.16,
+      "reduction_pct": 74.33
+    },
+    "optimizations": [
+      "Made PauliString abstract base class with __slots__ = () inheriting from raw_types.Operation",
+      "Defined _MultiQubitPauliString with __slots__ = ('_qubit_pauli_map', '_coefficient') for multi-qubit operations",
+      "Defined SingleQubitPauliStringGateOperation(GateOperation, PauliString) with __slots__ = () inheriting GateOperation slots without duplicate dicts",
+      "Eliminated eager {qubit: pauli} dict allocation and eager complex numbers in SingleQubitPauliStringGateOperation.__init__",
+      "Implemented zero-dict virtual mapping accessors (__getitem__, get, __contains__, __len__, keys, values, items) and equal_up_to_coefficient fast path",
+      "Added __slots__ = ('coefficient', 'pauli_int_dict', '__weakref__') to MutablePauliString",
+      "Optimized Pauli.__call__ and Pauli.on fast path for single-qubit instantiation",
+      "Updated json_resolver_cache to resolve PauliString to _MultiQubitPauliString with 100% JSON roundtrip compatibility"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 482,
+    "json_serialization_tests_passed": 854,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
