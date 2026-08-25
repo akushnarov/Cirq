@@ -147,6 +147,11 @@ To maximize throughput, tasks that touch **disjoint code modules** can be execut
 | **Phase 1.5** | **Track Exp-Base (Baseline Run)** | **Task 1.5.2**: Baseline Benchmark Run on `upstream/main` | `/tmp/cirq_upstream_baseline` | Task 1.5.3 |
 | **Phase 1.5** | **Track Exp-Fork (Fork Run)** | **Task 1.5.3**: Fork Benchmark Run on `origin/main` | `/tmp/cirq_fork_optimized` | Task 1.5.2 |
 | **Phase 1.5** | **Track Exp-Stat (Synthesis)** | **Task 1.5.4**: Statistical Analysis & `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md` | `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`, `benchmarks/` | Depends on 1.5.2, 1.5.3 |
+| **Phase 1.6** | **Track Fix-Pauli (Memory/Inst)**| **Task 1.6.1**: Slotted `PauliString` & Flyweight `SingleQubitPauliStringGateOperation` | `cirq-core/cirq/ops/pauli_string.py`, `pauli_gates.py` | Tasks 1.6.2, 1.6.3, 1.6.4 |
+| **Phase 1.6** | **Track Fix-Grid (Qubit Inst)** | **Task 1.6.2**: Lean `GridQubit` Layout & Slot Optimization | `cirq-core/cirq/devices/grid_qubit.py` | Tasks 1.6.1, 1.6.3, 1.6.4 |
+| **Phase 1.6** | **Track Fix-Eq (Symmetric 2Q)** | **Task 1.6.3**: Fast-Path Symmetric 2Q Gate Equality (`_is_interchangeable`) | `cirq-core/cirq/ops/gate_operation.py`, `common_gates.py` | Tasks 1.6.1, 1.6.2, 1.6.4 |
+| **Phase 1.6** | **Track Fix-Cache (Placement)** | **Task 1.6.4**: Lazy `_PlacementCache` & Zero-Cost Moment Append | `cirq-core/cirq/circuits/circuit.py` | Tasks 1.6.1, 1.6.2, 1.6.3 |
+| **Phase 1.6** | **Track Fix-Reval (Re-Benchmark)**| **Task 1.6.5**: Benchmark Re-Validation & Verification of Fixed Regressions | `benchmarks/run_head_to_head.py` | Depends on 1.6.1–1.6.4 |
 | **Phase 2** | **Track Rust Core** | **Tasks 2.1 – 2.5**: `PackedOp` Arena & SIMD BitVec | `crates/cirq-core-rs/` | Pure Rust workspace |
 | **Phase 2** | **Track Rust Passes** | **Tasks 2.6 – 2.7**: Native Passes & Stim Bridge | `crates/cirq-core-rs/src/transformers/` | Independent pass modules |
 
@@ -199,6 +204,23 @@ graph TD
     T1_5_2 --> T1_5_4
     T1_5_3 --> T1_5_4
 
+    subgraph "Phase 1.6: Post-Benchmark Regression Remediation & Micro-Optimizations"
+        T1_6_1["[PARALLEL 6A] Task 1.6.1: Slotted PauliString & Flyweight SingleQubitPauliStringGateOperation"]
+        T1_6_2["[PARALLEL 6B] Task 1.6.2: Lean GridQubit Layout & Slot Optimization"]
+        T1_6_3["[PARALLEL 6C] Task 1.6.3: Fast-Path Symmetric 2Q Gate Equality"]
+        T1_6_4["[PARALLEL 6D] Task 1.6.4: Lazy _PlacementCache & Direct Moment Append"]
+        T1_6_5["Task 1.6.5: Benchmark Re-Validation & Verification of Fixed Regressions"]
+    end
+
+    T1_5_4 --> T1_6_1
+    T1_5_4 --> T1_6_2
+    T1_5_4 --> T1_6_3
+    T1_5_4 --> T1_6_4
+    T1_6_1 --> T1_6_5
+    T1_6_2 --> T1_6_5
+    T1_6_3 --> T1_6_5
+    T1_6_4 --> T1_6_5
+
     subgraph "Phase 2: Native Rust Hybrid Core cirq_core_rs"
         T2_1[Task 2.1: Rust Workspace Scaffolding] --> T2_2[Task 2.2: QubitRegistry & Interning]
         T2_2 --> T2_3[Task 2.3: PackedOp Arena & StandardGate Enum]
@@ -208,7 +230,7 @@ graph TD
         T2_5 --> T2_7["[PARALLEL 2.7] Task 2.7: Native RepeatBlock AST & Stim Bridge"]
     end
 
-    T1_5_4 --> T2_1
+    T1_6_5 --> T2_1
 ```
 
 ---
@@ -832,11 +854,274 @@ graph TD
    git push origin main
    ```
 4. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
-   Phase 1.5 Complete. Proceed to **Phase 2**.
+   Phase 1.5 Complete. Proceed to **Phase 1.6: Post-Benchmark Regression Remediation & Micro-Optimizations**.
 
 ---
 
-## 4. Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)
+## 4. Phase 1.6: Post-Benchmark Regression Remediation & Micro-Optimizations
+
+Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RESULTS_20260821_084810.md`), 4 critical micro-architectural bottlenecks and regressions were identified across object creation, equality, and memory allocation. Phase 1.6 systematically resolves these root causes to ensure 100% Pareto superiority before initiating Phase 2.
+
+### Task 1.6.1: Universal `__slots__` & Lazy Dictionary Elimination on `SingleQubitPauliStringGateOperation` `[PHASE 1.6 - TRACK FIX-PAULI: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 1 day
+- **Concurrency**: **Can run concurrently with Tasks 1.6.2, 1.6.3, 1.6.4 (Touches only pauli_string.py and pauli_gates.py)**
+- **Dependencies**: Phase 1.5 Complete
+- **Target Files**:
+  - `cirq-core/cirq/ops/pauli_string.py` (`PauliString`, `SingleQubitPauliStringGateOperation`, `MutablePauliString`)
+  - `cirq-core/cirq/ops/pauli_gates.py` (`_PauliX`, `_PauliY`, `_PauliZ`)
+- **Problem Statement & Root Cause**:
+  - `cirq.X(q)`, `cirq.Y(q)`, `cirq.Z(q)` return `SingleQubitPauliStringGateOperation(self, qubits[0])`.
+  - Neither `PauliString` nor `SingleQubitPauliStringGateOperation` define `__slots__`, forcing dynamic `__dict__` allocation on every single Pauli gate operation.
+  - In `__init__`, `SingleQubitPauliStringGateOperation` eagerly allocates an isolated Python dictionary `{qubit: pauli}` for `self._qubit_pauli_map` and a `complex` coefficient.
+  - As a consequence, 1,000,000 operations allocate 2,000,000 dictionaries, causing 1M distinct ops heap memory to surge from 432 MB to **718.58 MB** (tracemalloc: 328 MB in `pauli_string.py:185` + 214 MB in `pauli_string.py:1184`), while `cirq.X(q)` instantiation latency slows down to **2,911.67 ns**.
+- **Implementation Plan**:
+  1. Add `__slots__ = ('_qubit_pauli_map', '_coefficient', '__weakref__')` to `PauliString`.
+  2. Add `__slots__ = ()` to `SingleQubitPauliStringGateOperation` (inherits `_gate` and `_qubits` from `GateOperation`).
+  3. Optimize `SingleQubitPauliStringGateOperation.__init__` to avoid eager dictionary allocation:
+     - Set `self._gate = pauli` and `self._qubits = (qubit,)` directly via `GateOperation.__init__`.
+     - Lazily construct `_qubit_pauli_map` only when indexed or mapped as a `PauliString` mapping (`{self._qubits[0]: self._gate}`), with a fast-path property.
+     - Store implicit unit coefficient (`1.0`) without allocating complex objects.
+  4. Optimize `_PauliX.on`, `_PauliY.on`, `_PauliZ.on` fast path instantiation.
+- **Target Metrics**:
+  - 1M distinct ops heap memory drops from **718.58 MB** to **< 50.0 MB** (>14x memory reduction).
+  - `cirq.X(q)` instantiation latency drops from **2,911.67 ns** to **< 600 ns** (>4.8x speedup).
+  - 100% test pass on `cirq-core/cirq/ops/pauli_string_test.py` and `pauli_gates_test.py`.
+
+#### Execution Workflow:
+1. **Create Feature Branch**:
+   ```bash
+   git fetch origin
+   git checkout -b fix-slotted-pauli-string origin/main
+   ```
+2. **Do Changes (Implementation)**: Edit `pauli_string.py` and `pauli_gates.py`.
+3. **Run Tests, Linting & Format Checks**:
+   ```bash
+   pytest cirq-core/cirq/ops/pauli_string_test.py cirq-core/cirq/ops/pauli_gates_test.py -v
+   ./check/pytest-changed-files origin/main
+   ./check/format-incremental origin/main --apply
+   ./check/pylint-changed-files origin/main
+   ./check/typecheck
+   ./check/misc
+   ```
+4. **Run Related Benchmarks**:
+   ```bash
+   python -c "import cirq, timeit; q=cirq.LineQubit(0); print('X(q) inst:', timeit.timeit(lambda: cirq.X(q), number=100000)*10, 'ns')"
+   python -c "import cirq, tracemalloc, gc; gc.collect(); tracemalloc.start(); qs=[cirq.GridQubit(i,j) for i in range(50) for j in range(20)]; ops=[cirq.X(q) for q in qs for _ in range(1000)]; _, peak = tracemalloc.get_traced_memory(); print('1M Ops Peak:', peak/1024/1024, 'MB')"
+   ```
+5. **Track Improvement & Save Commit Association**: Save tracking record to `benchmarks/tracking/task_1_6_1_$(git rev-parse HEAD).json`.
+6. **Commit & Merge to Fork**:
+   ```bash
+   git commit -S -m "perf(ops): slotted PauliString and zero-dict flyweight SingleQubitPauliStringGateOperation"
+   git checkout main && git pull origin main && git merge --ff-only fix-slotted-pauli-string && git push origin main
+   ```
+7. **Mark Finished**: Update status to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.6.2: Lean `GridQubit` Layout & Redundant Slot Stripping `[PHASE 1.6 - TRACK FIX-GRID: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Tasks 1.6.1, 1.6.3, 1.6.4 (Touches only grid_qubit.py)**
+- **Dependencies**: Phase 1.5 Complete
+- **Target Files**:
+  - `cirq-core/cirq/devices/grid_qubit.py` (`_BaseGridQid`, `GridQubit`, `GridQid`)
+- **Problem Statement & Root Cause**:
+  - `_BaseGridQid.__slots__` defines `('_row', '_col', '_dimension', '_comp_key', '_hash')`.
+  - In `GridQubit.__new__`, every single instantiation executes `inst._dimension = 2` and `inst._comp_key = None`, adding two redundant `STORE_ATTR` slot writes per qubit.
+  - `_dimension = 2` is a class invariant for all `GridQubit` instances and should be a class attribute, not an instance slot variable.
+  - `_comp_key` is redundant because `__lt__`, `__le__`, `__ge__`, and `__gt__` already compare `_row` and `_col` directly with zero tuple allocation.
+  - WeakValueDictionary cache lookup on miss adds unnecessary overhead when creating unique coordinate instances.
+- **Implementation Plan**:
+  1. Refactor `_BaseGridQid.__slots__` to `('_row', '_col', '_hash')`.
+  2. Define `_dimension = 2` as a class attribute on `GridQubit`, and `_dimension` slot attribute only on `GridQid` (`__slots__ = ('_dimension',)`).
+  3. Strip `inst._dimension = 2` and `inst._comp_key = None` from `GridQubit.__new__`, reducing instantiation to 3 fast slot assignments (`_row`, `_col`, `_hash`).
+  4. Optimize weakref cache lookup and tuple hashing path.
+- **Target Metrics**:
+  - `cirq.GridQubit(r, c)` instantiation latency drops from **1,420.34 ns** to **< 800 ns** (>1.75x speedup).
+  - Per-instance memory overhead reduced by 16 bytes.
+  - 100% test pass on `cirq-core/cirq/devices/grid_qubit_test.py`.
+
+#### Execution Workflow:
+1. **Create Feature Branch**:
+   ```bash
+   git fetch origin
+   git checkout -b fix-lean-grid-qubit origin/main
+   ```
+2. **Do Changes (Implementation)**: Edit `grid_qubit.py`.
+3. **Run Tests, Linting & Format Checks**:
+   ```bash
+   pytest cirq-core/cirq/devices/grid_qubit_test.py -v
+   ./check/pytest-changed-files origin/main
+   ./check/format-incremental origin/main --apply
+   ./check/pylint-changed-files origin/main
+   ./check/typecheck
+   ./check/misc
+   ```
+4. **Run Related Benchmarks**:
+   ```bash
+   python -c "import cirq, timeit; print('GridQubit inst:', timeit.timeit(lambda: [cirq.GridQubit(r, c) for r in range(30) for c in range(30)], number=100)/900*1e9/100, 'ns')"
+   ```
+5. **Track Improvement & Save Commit Association**: Save tracking record to `benchmarks/tracking/task_1_6_2_$(git rev-parse HEAD).json`.
+6. **Commit & Merge to Fork**:
+   ```bash
+   git commit -S -m "perf(devices): lean GridQubit slots layout and stripped redundant slot assignments"
+   git checkout main && git pull origin main && git merge --ff-only fix-lean-grid-qubit && git push origin main
+   ```
+7. **Mark Finished**: Update status to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.6.3: Fast-Path Symmetric 2Q Gate Equality with `_is_interchangeable` Trait `[PHASE 1.6 - TRACK FIX-EQ: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Tasks 1.6.1, 1.6.2, 1.6.4 (Touches only gate_operation.py and common_gates.py)**
+- **Dependencies**: Phase 1.5 Complete
+- **Target Files**:
+  - `cirq-core/cirq/ops/gate_operation.py` (`GateOperation.__eq__`)
+  - `cirq-core/cirq/ops/gate_features.py` (`InterchangeableQubitsGate`)
+  - `cirq-core/cirq/ops/common_gates.py` (`CZPowGate`, `SwapPowGate`, `ISwapPowGate`, `ZZPowGate`)
+- **Problem Statement & Root Cause**:
+  - `CZ(0,1) == CZ(1,0)` equality latency slowed down by 2.68x (from 433 ns to **1,161.65 ns**).
+  - In `GateOperation.__eq__`, checking symmetric operations executes `isinstance(self._gate, gate_features.InterchangeableQubitsGate)` which invokes slow ABC `__instancecheck__` and `_abc_instancecheck` on every single equality query.
+  - It then executes two dynamic method calls `qubit_index_to_equivalence_group_key(0)` and `(1)`, followed by item-by-item `LineQubit.__eq__` evaluations.
+- **Implementation Plan**:
+  1. Add a fast boolean trait `_is_symmetric_2q: bool = True` on built-in symmetric 2-qubit gates (`CZPowGate`, `SwapPowGate`, `ISwapPowGate`, `ZZPowGate`, `XXPowGate`, `YYPowGate`).
+  2. In `GateOperation.__eq__`, fast-path 2-qubit symmetric equality directly:
+     ```python
+     if getattr(self._gate, '_is_symmetric_2q', False) and (self._gate is other._gate or self._gate == other._gate):
+         if len(self._qubits) == 2 and len(other._qubits) == 2:
+             q0_s, q1_s = self._qubits
+             q0_o, q1_o = other._qubits
+             return (q0_s == q1_o and q1_s == q0_o)
+     ```
+  3. Replace the ABC `isinstance(..., InterchangeableQubitsGate)` with an attribute check `getattr(self._gate, '_is_interchangeable', False)` for arbitrary n-qubit interchangeable gates.
+- **Target Metrics**:
+  - Symmetric 2Q equality latency (`CZ(0,1) == CZ(1,0)`) drops from **1,161.65 ns** to **< 80 ns** (>14x speedup).
+  - 100% test pass on `cirq-core/cirq/ops/gate_operation_test.py` and `cirq-core/cirq/ops/common_gates_test.py`.
+
+#### Execution Workflow:
+1. **Create Feature Branch**:
+   ```bash
+   git fetch origin
+   git checkout -b fix-fast-symmetric-equality origin/main
+   ```
+2. **Do Changes (Implementation)**: Edit `gate_operation.py`, `gate_features.py`, and `common_gates.py`.
+3. **Run Tests, Linting & Format Checks**:
+   ```bash
+   pytest cirq-core/cirq/ops/gate_operation_test.py cirq-core/cirq/ops/common_gates_test.py -v
+   ./check/pytest-changed-files origin/main
+   ./check/format-incremental origin/main --apply
+   ./check/pylint-changed-files origin/main
+   ./check/typecheck
+   ./check/misc
+   ```
+4. **Run Related Benchmarks**:
+   ```bash
+   python -c "import cirq, timeit; q0, q1 = cirq.LineQubit(0), cirq.LineQubit(1); cz1, cz2 = cirq.CZ(q0, q1), cirq.CZ(q1, q0); print('Symmetric CZ eq:', timeit.timeit(lambda: cz1 == cz2, number=100000)*10, 'ns')"
+   ```
+5. **Track Improvement & Save Commit Association**: Save tracking record to `benchmarks/tracking/task_1_6_3_$(git rev-parse HEAD).json`.
+6. **Commit & Merge to Fork**:
+   ```bash
+   git commit -S -m "perf(ops): _is_symmetric_2q fast-path gate equality avoiding ABC instancecheck"
+   git checkout main && git pull origin main && git merge --ff-only fix-fast-symmetric-equality && git push origin main
+   ```
+7. **Mark Finished**: Update status to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.6.4: Lazy `_PlacementCache` Initialization & Zero-Cost Moment Append `[PHASE 1.6 - TRACK FIX-CACHE: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P1`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Tasks 1.6.1, 1.6.2, 1.6.3 (Touches only circuit.py)**
+- **Dependencies**: Phase 1.5 Complete
+- **Target Files**:
+  - `cirq-core/cirq/circuits/circuit.py` (`Circuit.__init__`, `_from_moments`, `_PlacementCache.append`)
+- **Problem Statement & Root Cause**:
+  - `Circuit.__init__` unconditionally instantiates `self._placement_cache = _PlacementCache()`, allocating 3 tracking dictionaries (`_qubit_indices`, `_mkey_indices`, `_ckey_indices`) on every circuit creation, even when circuits are constructed from pre-existing moments or never use `InsertStrategy.EARLIEST`.
+  - In `_PlacementCache.append`, appending a `Moment` iterates over every qubit and updates `_qubit_indices[qubit] = mop_index` (2,000 dict writes per moment $\times$ 1,000 moments = 2,000,000 dict writes), adding slight latency during direct moment appends.
+- **Implementation Plan**:
+  1. Defer `_PlacementCache` allocation: initialize `self._placement_cache = None` in `Circuit.__init__`.
+  2. Instantiate `_PlacementCache` lazily ONLY when an operation is appended using `strategy=InsertStrategy.EARLIEST`.
+  3. For direct moment appends (`strategy=InsertStrategy.NEW`), append directly to `self._moments` in $O(1)$ and update `_PlacementCache._length` without scanning/writing individual qubit dictionaries until subsequent non-moment ops are appended.
+- **Target Metrics**:
+  - Repeated circuit memory overhead drops from **0.74 MB** to **< 0.10 MB** (>7x reduction).
+  - Direct moment append latency reduced to pure list append overhead (< 100 ms for 2,000q x 1,000m).
+  - 100% test pass on `cirq-core/cirq/circuits/circuit_test.py`.
+
+#### Execution Workflow:
+1. **Create Feature Branch**:
+   ```bash
+   git fetch origin
+   git checkout -b fix-lazy-placement-cache origin/main
+   ```
+2. **Do Changes (Implementation)**: Edit `circuit.py`.
+3. **Run Tests, Linting & Format Checks**:
+   ```bash
+   pytest cirq-core/cirq/circuits/circuit_test.py -v
+   ./check/pytest-changed-files origin/main
+   ./check/format-incremental origin/main --apply
+   ./check/pylint-changed-files origin/main
+   ./check/typecheck
+   ./check/misc
+   ```
+4. **Run Related Benchmarks**:
+   ```bash
+   python -c "import cirq, timeit; qs=[cirq.GridQubit(i, j) for i in range(50) for j in range(40)]; mom=cirq.Moment([cirq.X(q) for q in qs]); c=cirq.Circuit(); print('Direct moment append 1000:', timeit.timeit(lambda: [c.append(mom) for _ in range(1000)], number=1)*1000, 'ms')"
+   ```
+5. **Track Improvement & Save Commit Association**: Save tracking record to `benchmarks/tracking/task_1_6_4_$(git rev-parse HEAD).json`.
+6. **Commit & Merge to Fork**:
+   ```bash
+   git commit -S -m "perf(circuits): lazy _PlacementCache instantiation and zero-cost direct moment append"
+   git checkout main && git pull origin main && git merge --ff-only fix-lazy-placement-cache && git push origin main
+   ```
+7. **Mark Finished**: Update status to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.6.5: Benchmark Re-Validation & Verification of Fixed Regressions `[PHASE 1.6 - TRACK FIX-REVAL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Dependencies**: Tasks 1.6.1, 1.6.2, 1.6.3, 1.6.4
+- **Target Files**:
+  - `benchmarks/run_head_to_head.py`
+  - `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`
+  - `benchmarks/head_to_head_results.json`
+- **Verification Goals**:
+  1. Re-execute the automated head-to-head empirical benchmark harness across upstream baseline and fork.
+  2. Verify that all 8 regression cases have been completely resolved:
+     - `cirq.GridQubit(r, c)`: < 800 ns (was 1,420 ns, +8.5% regression $\to$ **>40% speedup** vs baseline).
+     - `cirq.X(q)`: < 600 ns (was 2,911 ns, +7.6% regression $\to$ **>75% speedup** vs baseline).
+     - Symmetric 2Q Equality `CZ(0,1) == CZ(1,0)`: < 80 ns (was 1,161 ns, +168% regression $\to$ **>80% speedup** vs baseline).
+     - 1M Distinct Ops Heap Memory: < 50 MB (was 718 MB, +66% increase $\to$ **>88% memory reduction** vs baseline 432 MB).
+     - Repeated Circuit Memory: < 0.15 MB (was 0.74 MB, +60% increase $\to$ **>65% memory reduction** vs baseline 0.46 MB).
+     - Direct Moment Append: < 120 ms (was 152 ms $\to$ **>20% speedup** vs baseline 149 ms).
+  3. Publish updated comparative results document `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md` demonstrating 100% Pareto superiority across all 26 benchmark test points.
+
+#### Execution Workflow:
+1. **Execute Head-to-Head Harness**:
+   ```bash
+   python benchmarks/run_head_to_head.py
+   ```
+2. **Verify All Metrics**: Confirm zero remaining regressions.
+3. **Commit & Merge to Fork**:
+   ```bash
+   ./check/misc
+   git add OPTIMISATION_COMPARISON_RESULTS_*.md benchmarks/head_to_head_results.json TASKS.md
+   git commit -S -m "docs: re-validate head-to-head benchmark demonstrating 100% Pareto superiority across all checks"
+   git push origin main
+   ```
+4. **Mark Finished**: Update status to `[x] Completed (Commit: <commit_sha>)`.
+   Phase 1.6 Complete. Proceed to **Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)**.
+
+---
+
+## 5. Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)
 
 ### Task 2.1: Rust Workspace & Maturin Build Scaffolding `[PHASE 2 - WAVE 1]`
 - **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
