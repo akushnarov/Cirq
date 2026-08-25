@@ -876,14 +876,16 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
   - Neither `PauliString` nor `SingleQubitPauliStringGateOperation` define `__slots__`, forcing dynamic `__dict__` allocation on every single Pauli gate operation.
   - In `__init__`, `SingleQubitPauliStringGateOperation` eagerly allocates an isolated Python dictionary `{qubit: pauli}` for `self._qubit_pauli_map` and a `complex` coefficient.
   - As a consequence, 1,000,000 operations allocate 2,000,000 dictionaries, causing 1M distinct ops heap memory to surge from 432 MB to **718.58 MB** (tracemalloc: 328 MB in `pauli_string.py:185` + 214 MB in `pauli_string.py:1184`), while `cirq.X(q)` instantiation latency slows down to **2,911.67 ns**.
-- **Implementation Plan**:
-  1. Add `__slots__ = ('_qubit_pauli_map', '_coefficient', '__weakref__')` to `PauliString`.
-  2. Add `__slots__ = ()` to `SingleQubitPauliStringGateOperation` (inherits `_gate` and `_qubits` from `GateOperation`).
-  3. Optimize `SingleQubitPauliStringGateOperation.__init__` to avoid eager dictionary allocation:
+- **Implementation Plan (Layout-Conflict-Free Slotted Architecture)**:
+  1. In Python, multiple inheritance with `__slots__` raises `TypeError: multiple bases have instance lay-out conflict` if more than one base class has non-empty slots. Because `GateOperation` already defines `__slots__ = ('_gate', '_qubits')`, `PauliString` base must define empty `__slots__ = ()`.
+  2. Implement `PauliString` as the abstract base with `__slots__ = ()`, implementing all protocol and operator methods, with `__new__` dispatching to `_MultiQubitPauliString` when multi-qubit.
+  3. Define `_MultiQubitPauliString(PauliString)` with `__slots__ = ('_qubit_pauli_map', '_coefficient', '__weakref__')` for general multi-qubit Pauli strings.
+  4. Define `SingleQubitPauliStringGateOperation(GateOperation, PauliString)` with `__slots__ = ()` (inheriting slots directly from `GateOperation`).
+  5. Optimize `SingleQubitPauliStringGateOperation.__init__` to avoid eager dictionary allocation:
      - Set `self._gate = pauli` and `self._qubits = (qubit,)` directly via `GateOperation.__init__`.
      - Lazily construct `_qubit_pauli_map` only when indexed or mapped as a `PauliString` mapping (`{self._qubits[0]: self._gate}`), with a fast-path property.
      - Store implicit unit coefficient (`1.0`) without allocating complex objects.
-  4. Optimize `_PauliX.on`, `_PauliY.on`, `_PauliZ.on` fast path instantiation.
+  6. Optimize `_PauliX.on`, `_PauliY.on`, `_PauliZ.on` fast path instantiation.
 - **Target Metrics**:
   - 1M distinct ops heap memory drops from **718.58 MB** to **< 50.0 MB** (>14x memory reduction).
   - `cirq.X(q)` instantiation latency drops from **2,911.67 ns** to **< 600 ns** (>4.8x speedup).
@@ -974,7 +976,7 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 
 ---
 
-### Task 1.6.3: Fast-Path Symmetric 2Q Gate Equality with `_is_interchangeable` Trait `[PHASE 1.6 - TRACK FIX-EQ: PARALLEL]`
+### Task 1.6.3: Fast-Path Symmetric 2Q Gate Equality with `_is_symmetric_2q` Trait `[PHASE 1.6 - TRACK FIX-EQ: PARALLEL]`
 - **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
@@ -990,13 +992,11 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
   - It then executes two dynamic method calls `qubit_index_to_equivalence_group_key(0)` and `(1)`, followed by item-by-item `LineQubit.__eq__` evaluations.
 - **Implementation Plan**:
   1. Add a fast boolean trait `_is_symmetric_2q: bool = True` on built-in symmetric 2-qubit gates (`CZPowGate`, `SwapPowGate`, `ISwapPowGate`, `ZZPowGate`, `XXPowGate`, `YYPowGate`).
-  2. In `GateOperation.__eq__`, fast-path 2-qubit symmetric equality directly:
+  2. In `GateOperation.__eq__`, fast-path 2-qubit symmetric equality via inlined tuple swap check:
      ```python
      if getattr(self._gate, '_is_symmetric_2q', False) and (self._gate is other._gate or self._gate == other._gate):
          if len(self._qubits) == 2 and len(other._qubits) == 2:
-             q0_s, q1_s = self._qubits
-             q0_o, q1_o = other._qubits
-             return (q0_s == q1_o and q1_s == q0_o)
+             return self._qubits == (other._qubits[1], other._qubits[0])
      ```
   3. Replace the ABC `isinstance(..., InterchangeableQubitsGate)` with an attribute check `getattr(self._gate, '_is_interchangeable', False)` for arbitrary n-qubit interchangeable gates.
 - **Target Metrics**:
