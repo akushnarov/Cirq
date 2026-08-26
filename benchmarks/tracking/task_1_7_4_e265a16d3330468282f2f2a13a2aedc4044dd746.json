@@ -1,0 +1,42 @@
+{
+  "task_id": "1.7.4",
+  "task_name": "Fast-Path Fixed-Arity 2-Qubit Gate Instantiation (CXPowGate, CZPowGate, SwapPowGate, ISwapPowGate)",
+  "branch": "perf-fast-2q-gate-inst",
+  "commit_sha": "e265a16d3330468282f2f2a13a2aedc4044dd746",
+  "timestamp": "2026-08-26T08:49:00Z",
+  "metrics": {
+    "cnot_q0_q1_latency_ns": {
+      "baseline_ns": 1721.3,
+      "optimized_ns": 347.54,
+      "speedup_factor": 4.95
+    },
+    "cnot_on_q0_q1_latency_ns": {
+      "baseline_ns": 1623.4,
+      "optimized_ns": 252.49,
+      "speedup_factor": 6.43
+    },
+    "cz_q0_q1_latency_ns": {
+      "baseline_ns": 2745.27,
+      "optimized_ns": 348.39,
+      "speedup_factor": 7.88
+    },
+    "cz_on_q0_q1_latency_ns": {
+      "baseline_ns": 1580.0,
+      "optimized_ns": 249.41,
+      "speedup_factor": 6.33
+    },
+    "optimizations": [
+      "Inlined fixed-arity fast-path GateOperation.__new__ in CXPowGate.on, CZPowGate.on, SwapPowGate.on, and ISwapPowGate.on",
+      "Bypassed kwargs dict allocation in CXPowGate.__call__, CZPowGate.__call__, SwapPowGate.__call__, and ISwapPowGate.__call__ when passed 2 positional qubits without kwargs",
+      "Bypassed tuple re-allocation using direct tuple identity check `qubits if type(qubits) is tuple else tuple(qubits)`",
+      "Added dimension check in SingleQubitPauliStringGateOperation to enforce qubit dimensionality without overhead"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 639,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
