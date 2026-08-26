@@ -436,6 +436,19 @@ class GridQubit(_BaseGridQid):
             cls._cache[key] = inst
         return inst
 
+    def __hash__(self) -> int:
+        return self._hash
+
+    def __eq__(self, other: Any) -> bool:
+        if type(other) is GridQubit:
+            return self is other or (self._row == other._row and self._col == other._col)
+        return super().__eq__(other)
+
+    def __ne__(self, other: Any) -> bool:
+        if type(other) is GridQubit:
+            return self is not other and (self._row != other._row or self._col != other._col)
+        return super().__ne__(other)
+
     def __getnewargs__(self):
         """Returns a tuple of args to pass to __new__ when unpickling."""
         return (self._row, self._col)

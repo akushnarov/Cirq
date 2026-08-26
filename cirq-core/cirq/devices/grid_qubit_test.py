@@ -45,6 +45,16 @@ def test_eq() -> None:
     eq.make_equality_group(lambda: cirq.GridQid(0, 0, dimension=3))
 
 
+def test_cross_type_equality() -> None:
+    assert cirq.GridQubit(0, 0) == cirq.GridQid(0, 0, dimension=2)
+    assert cirq.GridQid(0, 0, dimension=2) == cirq.GridQubit(0, 0)
+    assert cirq.GridQubit(0, 0) != cirq.GridQid(0, 0, dimension=3)
+    assert cirq.GridQid(0, 0, dimension=3) != cirq.GridQubit(0, 0)
+    assert cirq.GridQubit(1, 2) == cirq.GridQid(1, 2, dimension=2)
+    assert cirq.GridQubit(1, 2) != cirq.GridQid(1, 3, dimension=2)
+    assert cirq.GridQubit(1, 2) != cirq.GridQid(2, 2, dimension=2)
+
+
 def test_grid_qubit_pickled_hash() -> None:
     # Use a large number that is unlikely to be used by any other tests.
     row, col = 123456789, 2345678910

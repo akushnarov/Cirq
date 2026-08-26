@@ -336,6 +336,19 @@ class LineQubit(_BaseLineQid):
             cls._cache[x] = inst
         return inst
 
+    def __hash__(self) -> int:
+        return self._hash
+
+    def __eq__(self, other: Any) -> bool:
+        if type(other) is LineQubit:
+            return self is other or self._x == other._x
+        return super().__eq__(other)
+
+    def __ne__(self, other: Any) -> bool:
+        if type(other) is LineQubit:
+            return self is not other and self._x != other._x
+        return super().__ne__(other)
+
     def __getnewargs__(self):
         """Returns a tuple of args to pass to __new__ when unpickling."""
         return (self._x,)
