@@ -1,0 +1,33 @@
+{
+  "task_id": "1.9.4",
+  "task_name": "Lean Qubit Exact-Type Coordinate Comparison",
+  "branch": "refactor-lean-qubit-eq",
+  "commit_sha": "e4b04f39deed792b202e10ae8f6cd84acbf1e6f1",
+  "timestamp": "2026-08-26T12:25:09Z",
+  "metrics": {
+    "line_qubit_eq_ns": {
+      "baseline_ns": 246.93,
+      "optimized_ns": 103.11,
+      "speedup_vs_baseline": 2.39
+    },
+    "grid_qubit_eq_ns": {
+      "baseline_ns": 391.48,
+      "optimized_ns": 104.52,
+      "speedup_vs_baseline": 3.75
+    },
+    "optimizations": [
+      "Inlined exact type check `if type(other) is LineQubit: return self is other or self._x == other._x` into LineQubit.__eq__ and __ne__",
+      "Inlined exact type check `if type(other) is GridQubit: return self is other or (self._row == other._row and self._col == other._col)` into GridQubit.__eq__ and __ne__",
+      "Explicitly maintained __hash__ to preserve full hashability after overriding __eq__",
+      "Preserved 100% full cross-type equality semantics when comparing with LineQid / GridQid",
+      "Added comprehensive unit tests for exact and cross-type equality in line_qubit_test.py and grid_qubit_test.py"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 66,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
