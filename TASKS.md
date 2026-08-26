@@ -1614,7 +1614,7 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 ---
 
 ### Task 1.8.3: Benchmark Harness Multi-Repeat Calibration & Final Empirical Publication `[PHASE 1.8 - TRACK REVAL-1.8]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: e9bd5da3)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Dependencies**: Tasks 1.8.1, 1.8.2 Complete
