@@ -160,6 +160,11 @@ To maximize throughput, tasks that touch **disjoint code modules** can be execut
 | **Phase 1.8** | **Track Fast-Ptr-Eq (Pointer-Priority 2Q)** | **Task 1.8.1**: Pointer-Priority Symmetric 2Q Gate Equality | `cirq-core/cirq/ops/gate_operation.py` | Task 1.8.2 |
 | **Phase 1.8** | **Track Fast-Qubit-Cache (Static Interning)** | **Task 1.8.2**: Small-Index Static Array Interning for Qubits | `cirq-core/cirq/devices/line_qubit.py`, `devices/grid_qubit.py` | Task 1.8.1 |
 | **Phase 1.8** | **Track Reval-1.8 (Head-to-Head Calibration)**| **Task 1.8.3**: Multi-Repeat Calibration & Automated Head-to-Head Publication | `benchmarks/run_head_to_head.py` | Depends on 1.8.1, 1.8.2 |
+| **Phase 1.9** | **Track DRY-Dag (CircuitDag Engine)** | **Task 1.9.1**: CircuitDag Dependency Linking DRY Unification | `cirq-core/cirq/circuits/circuit_dag.py` | Tasks 1.9.2, 1.9.3, 1.9.4 |
+| **Phase 1.9** | **Track DRY-Align (Transformer Unification)** | **Task 1.9.2**: Align Transformers Dual-Direction Engine Unification | `cirq-core/cirq/transformers/align.py` | Tasks 1.9.1, 1.9.3, 1.9.4 |
+| **Phase 1.9** | **Track DRY-Sym-Eq (Arity Ladder & Trait)** | **Task 1.9.3**: GateOperation Arity Ladder & Symmetric2QGate Trait | `cirq-core/cirq/ops/gate_operation.py`, `gate_features.py` | Tasks 1.9.1, 1.9.2, 1.9.4 |
+| **Phase 1.9** | **Track Lean-Qubit-Eq (Coordinate Inlining)** | **Task 1.9.4**: Lean Qubit Exact-Type Coordinate Comparison | `cirq-core/cirq/devices/line_qubit.py`, `grid_qubit.py` | Tasks 1.9.1, 1.9.2, 1.9.3 |
+| **Phase 1.9** | **Track Reval-1.9 (Benchmark Re-Validation)**| **Task 1.9.5**: Benchmark Re-Validation & Zero-Regression Publication | `benchmarks/run_head_to_head.py` | Depends on 1.9.1–1.9.4 |
 | **Phase 2** | **Track Rust Core** | **Tasks 2.1 – 2.5**: `PackedOp` Arena & SIMD BitVec | `crates/cirq-core-rs/` | Pure Rust workspace |
 | **Phase 2** | **Track Rust Passes** | **Tasks 2.6 – 2.7**: Native Passes & Stim Bridge | `crates/cirq-core-rs/src/transformers/` | Independent pass modules |
 
@@ -257,6 +262,23 @@ graph TD
     T1_8_1 --> T1_8_3
     T1_8_2 --> T1_8_3
 
+    subgraph "Phase 1.9: Code Deduplication, Decoupling & Best Practices Refactoring"
+        T1_9_1["[PARALLEL 9A] Task 1.9.1: CircuitDag Dependency Linking DRY Unification"]
+        T1_9_2["[PARALLEL 9B] Task 1.9.2: Align Transformers Dual-Direction Engine Unification"]
+        T1_9_3["[PARALLEL 9C] Task 1.9.3: GateOperation Arity Ladder & Symmetric2QGate Trait"]
+        T1_9_4["[PARALLEL 9D] Task 1.9.4: Lean Qubit Exact-Type Coordinate Comparison"]
+        T1_9_5["Task 1.9.5: Automated Benchmark Re-Validation & Zero-Regression Publication"]
+    end
+
+    T1_8_3 --> T1_9_1
+    T1_8_3 --> T1_9_2
+    T1_8_3 --> T1_9_3
+    T1_8_3 --> T1_9_4
+    T1_9_1 --> T1_9_5
+    T1_9_2 --> T1_9_5
+    T1_9_3 --> T1_9_5
+    T1_9_4 --> T1_9_5
+
     subgraph "Phase 2: Native Rust Hybrid Core cirq_core_rs"
         T2_1[Task 2.1: Rust Workspace Scaffolding] --> T2_2[Task 2.2: QubitRegistry & Interning]
         T2_2 --> T2_3[Task 2.3: PackedOp Arena & StandardGate Enum]
@@ -266,7 +288,7 @@ graph TD
         T2_5 --> T2_7["[PARALLEL 2.7] Task 2.7: Native RepeatBlock AST & Stim Bridge"]
     end
 
-    T1_8_3 --> T2_1
+    T1_9_5 --> T2_1
 ```
 
 ---
@@ -1641,12 +1663,248 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
    git commit -S -m "docs: re-validate head-to-head benchmark demonstrating 100% Pareto superiority across all checks"
    git push origin main
    ```
-4. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
-   Phase 1.8 Complete. Proceed to **Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)**.
+4. **Mark Finished**: Update status above to `[x] Completed (Commit: e9bd5da3)`.
+   Phase 1.8 Complete. Proceed to **Phase 1.9: Code Deduplication, Decoupling & Best Practices Refactoring**.
 
 ---
 
-## 7. Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)
+## 7. Phase 1.9: Code Deduplication, Decoupling & Best Practices Refactoring
+
+### Task 1.9.1: CircuitDag Dependency Linking DRY Unification `[PHASE 1.9 - TRACK DRY-DAG: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P1`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Tasks 1.9.2, 1.9.3, 1.9.4 (Touches only circuit_dag.py)**
+- **Dependencies**: Phase 1.8 Complete (Task 1.8.3)
+- **Target Files**:
+  - `cirq-core/cirq/circuits/circuit_dag.py` (`CircuitDag`, `_link_op_dependencies`, `append`, `from_ops`)
+  - `cirq-core/cirq/circuits/circuit_dag_test.py`
+- **Problem Statement & Root Cause**:
+  - `CircuitDag.from_ops` and `CircuitDag.append` contain ~30 lines of duplicated logic for qubit and measurement/control key frontier edge linking.
+- **Implementation Plan**:
+  1. In `CircuitDag`, extract helper `_link_op_dependencies(self, op: cirq.Operation, new_node: Unique[cirq.Operation]) -> None`.
+  2. Refactor `append()` and `from_ops()` to reuse `_link_op_dependencies` without sacrificing single-loop performance.
+  3. Ensure all tests in `circuit_dag_test.py` pass with 100% line coverage.
+- **Target Metrics**:
+  - 10k op DAG construction latency remains $\le 0.035\text{ s}$ (>550x faster than upstream baseline of $20.24\text{ s}$).
+  - 100% test pass on `circuit_dag_test.py`.
+
+#### Execution Workflow:
+1. **Create Feature Branch**:
+   ```bash
+   git fetch origin
+   git checkout -b refactor-dry-circuit-dag origin/main
+   ```
+2. **Do Changes (Implementation)**: Edit `circuit_dag.py`.
+3. **Run Tests, Linting & Format Checks**:
+   ```bash
+   pytest cirq-core/cirq/circuits/circuit_dag_test.py -v
+   ./check/pytest-changed-files origin/main
+   ./check/format-incremental origin/main --apply
+   ./check/pylint-changed-files origin/main
+   ./check/typecheck
+   ./check/misc
+   ```
+4. **Run Related Benchmarks**:
+   ```bash
+   python -c "import cirq, time; c=cirq.Circuit(cirq.X(cirq.LineQubit(i)) for i in range(1000) for _ in range(10)); t0=time.perf_counter(); cirq.CircuitDag.from_circuit(c); print('DAG 10k ops:', time.perf_counter()-t0, 's')"
+   ```
+5. **Track Improvement & Save Commit Association**: Save tracking record to `benchmarks/tracking/task_1_9_1_$(git rev-parse HEAD).json`.
+6. **Commit & Merge to Fork**:
+   ```bash
+   git commit -S -m "refactor(circuits): unify dependency edge linking in CircuitDag"
+   git checkout main && git pull origin main && git merge --ff-only refactor-dry-circuit-dag && git push origin main
+   ```
+7. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.9.2: Align Transformers Dual-Direction Engine Unification `[PHASE 1.9 - TRACK DRY-ALIGN: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P1`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Tasks 1.9.1, 1.9.3, 1.9.4 (Touches only align.py)**
+- **Dependencies**: Phase 1.8 Complete (Task 1.8.3)
+- **Target Files**:
+  - `cirq-core/cirq/transformers/align.py` (`align_left`, `align_right`, `_align_circuit_impl`)
+  - `cirq-core/cirq/transformers/align_test.py`
+- **Problem Statement & Root Cause**:
+  - `align_left` and `align_right` currently duplicate moment tracking dictionaries and conflict resolution ladders.
+- **Implementation Plan**:
+  1. Extract internal parameterized function `_align_circuit_impl(circuit, context, align_direction)` in `align.py`.
+  2. Implement `align_left` and `align_right` as thin public entry points with full documentation and docstrings delegating to `_align_circuit_impl`.
+  3. Ensure 100% backward compatibility and exact moment placement.
+- **Target Metrics**:
+  - `align_left` $500\times 500$ latency remains $\le 0.11\text{ s}$ (>10x faster than upstream baseline of $1.11\text{ s}$).
+  - 100% test pass on `cirq-core/cirq/transformers/align_test.py`.
+
+#### Execution Workflow:
+1. **Create Feature Branch**:
+   ```bash
+   git fetch origin
+   git checkout -b refactor-dry-align-transformers origin/main
+   ```
+2. **Do Changes (Implementation)**: Edit `align.py`.
+3. **Run Tests, Linting & Format Checks**:
+   ```bash
+   pytest cirq-core/cirq/transformers/align_test.py -v
+   ./check/pytest-changed-files origin/main
+   ./check/format-incremental origin/main --apply
+   ./check/pylint-changed-files origin/main
+   ./check/typecheck
+   ./check/misc
+   ```
+4. **Run Related Benchmarks**:
+   ```bash
+   python -c "import cirq, time, numpy as np; qs=cirq.LineQubit.range(500); rng=np.random.default_rng(42); moments=[cirq.Moment(cirq.X(qs[q]) for q in rng.choice(500, size=250, replace=False)) for _ in range(500)]; c=cirq.Circuit(moments); t0=time.perf_counter(); cirq.align_left(c); print('Align left 500x500:', time.perf_counter()-t0, 's')"
+   ```
+5. **Track Improvement & Save Commit Association**: Save tracking record to `benchmarks/tracking/task_1_9_2_$(git rev-parse HEAD).json`.
+6. **Commit & Merge to Fork**:
+   ```bash
+   git commit -S -m "refactor(transformers): unify align_left and align_right under shared placement engine"
+   git checkout main && git pull origin main && git merge --ff-only refactor-dry-align-transformers && git push origin main
+   ```
+7. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.9.3: GateOperation Arity Ladder & Symmetric2QGate Trait `[PHASE 1.9 - TRACK DRY-SYM-EQ: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P1`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Tasks 1.9.1, 1.9.2, 1.9.4 (Touches gate_operation.py, gate_features.py, etc.)**
+- **Dependencies**: Phase 1.8 Complete (Task 1.8.3)
+- **Target Files**:
+  - `cirq-core/cirq/ops/gate_features.py` (`Symmetric2QGate`)
+  - `cirq-core/cirq/ops/gate_operation.py` (`GateOperation.__eq__`)
+  - `cirq-core/cirq/ops/common_gates.py`, `swap_gates.py`, `parity_gates.py`, `fsim_gate.py`
+  - `cirq-core/cirq/ops/gate_operation_test.py`
+- **Problem Statement & Root Cause**:
+  - `GateOperation.__eq__` has inlined 2Q pointer equality, but 1Q gates still fall through to tuple value equality. Additionally, `_is_symmetric_2q` booleans are scattered across individual gate classes.
+- **Implementation Plan**:
+  1. In `gate_features.py`, define `class Symmetric2QGate(InterchangeableQubitsGate)` with `_is_symmetric_2q = True`, `_is_interchangeable = True`, and equivalence group key method.
+  2. Have `CZPowGate`, `SwapPowGate`, `ISwapPowGate`, `ZZPowGate`, `XXPowGate`, `YYPowGate`, `FSimGate` inherit from `Symmetric2QGate`.
+  3. In `GateOperation.__eq__`, structure an arity ladder with inlined 1Q check (`n_sq == 1 and n_oq == 1: return sq[0] is oq[0] or sq[0] == oq[0]`) and 2Q pointer check.
+- **Target Metrics**:
+  - 1Q gate equality (`X(q) == X(q)`) latency drops to $\le 175\text{ ns}$.
+  - Symmetric 2Q CZ equality (`CZ(0,1) == CZ(1,0)`) latency remains $\le 285\text{ ns}$.
+  - 100% test pass on all ops tests.
+
+#### Execution Workflow:
+1. **Create Feature Branch**:
+   ```bash
+   git fetch origin
+   git checkout -b refactor-dry-symmetric-gates origin/main
+   ```
+2. **Do Changes (Implementation)**: Edit `gate_features.py`, `gate_operation.py`, `common_gates.py`, `swap_gates.py`, `parity_gates.py`, `fsim_gate.py`.
+3. **Run Tests, Linting & Format Checks**:
+   ```bash
+   pytest cirq-core/cirq/ops/gate_operation_test.py cirq-core/cirq/ops/common_gates_test.py cirq-core/cirq/ops/swap_gates_test.py cirq-core/cirq/ops/parity_gates_test.py -v
+   ./check/pytest-changed-files origin/main
+   ./check/format-incremental origin/main --apply
+   ./check/pylint-changed-files origin/main
+   ./check/typecheck
+   ./check/misc
+   ```
+4. **Run Related Benchmarks**:
+   ```bash
+   python -c "import cirq, timeit; q0, q1 = cirq.LineQubit(0), cirq.LineQubit(1); cz1, cz2 = cirq.CZ(q0, q1), cirq.CZ(q1, q0); print('Symmetric CZ eq:', timeit.timeit(lambda: cz1 == cz2, number=200000)/200000*1e9, 'ns')"
+   python -c "import cirq, timeit; q = cirq.LineQubit(0); op1, op2 = cirq.X(q), cirq.X(q); print('1Q X eq:', timeit.timeit(lambda: op1 == op2, number=200000)/200000*1e9, 'ns')"
+   ```
+5. **Track Improvement & Save Commit Association**: Save tracking record to `benchmarks/tracking/task_1_9_3_$(git rev-parse HEAD).json`.
+6. **Commit & Merge to Fork**:
+   ```bash
+   git commit -S -m "refactor(ops): Symmetric2QGate trait and unified arity ladder in GateOperation.__eq__"
+   git checkout main && git pull origin main && git merge --ff-only refactor-dry-symmetric-gates && git push origin main
+   ```
+7. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.9.4: Lean Qubit Exact-Type Coordinate Comparison `[PHASE 1.9 - TRACK LEAN-QUBIT-EQ: PARALLEL]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P1`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Tasks 1.9.1, 1.9.2, 1.9.3 (Touches line_qubit.py, grid_qubit.py)**
+- **Dependencies**: Phase 1.8 Complete (Task 1.8.3)
+- **Target Files**:
+  - `cirq-core/cirq/devices/line_qubit.py` (`LineQubit.__eq__`)
+  - `cirq-core/cirq/devices/grid_qubit.py` (`GridQubit.__eq__`)
+  - `cirq-core/cirq/devices/line_qubit_test.py`, `grid_qubit_test.py`
+- **Problem Statement & Root Cause**:
+  - When evaluating `LineQubit == LineQubit` or `GridQubit == GridQubit`, checking `self._dimension == other._dimension` performs redundant attribute lookups on class attributes (`2 == 2`).
+- **Implementation Plan**:
+  1. In `LineQubit`, override `__eq__` to check `if type(other) is LineQubit: return self is other or self._x == other._x` before delegating to `_BaseLineQid.__eq__`.
+  2. In `GridQubit`, override `__eq__` to check `if type(other) is GridQubit: return self is other or (self._row == other._row and self._col == other._col)` before delegating to `_BaseGridQid.__eq__`.
+  3. Validate full cross-type equality preservation (`LineQubit(0) == LineQid(0, dimension=2)` is True, `LineQubit(0) == LineQid(0, dimension=3)` is False).
+- **Target Metrics**:
+  - Qubit coordinate equality resolves in $\le 20\text{ ns}$.
+  - 100% test pass on `line_qubit_test.py` and `grid_qubit_test.py`.
+
+#### Execution Workflow:
+1. **Create Feature Branch**:
+   ```bash
+   git fetch origin
+   git checkout -b refactor-lean-qubit-eq origin/main
+   ```
+2. **Do Changes (Implementation)**: Edit `line_qubit.py` and `grid_qubit.py`.
+3. **Run Tests, Linting & Format Checks**:
+   ```bash
+   pytest cirq-core/cirq/devices/line_qubit_test.py cirq-core/cirq/devices/grid_qubit_test.py -v
+   ./check/pytest-changed-files origin/main
+   ./check/format-incremental origin/main --apply
+   ./check/pylint-changed-files origin/main
+   ./check/typecheck
+   ./check/misc
+   ```
+4. **Run Related Benchmarks**:
+   ```bash
+   python -c "import cirq, timeit; q0, q1 = cirq.LineQubit(0), cirq.LineQubit(0); print('LineQubit eq:', timeit.timeit(lambda: q0 == q1, number=500000)/500000*1e9, 'ns')"
+   python -c "import cirq, timeit; q0, q1 = cirq.GridQubit(2, 3), cirq.GridQubit(2, 3); print('GridQubit eq:', timeit.timeit(lambda: q0 == q1, number=500000)/500000*1e9, 'ns')"
+   ```
+5. **Track Improvement & Save Commit Association**: Save tracking record to `benchmarks/tracking/task_1_9_4_$(git rev-parse HEAD).json`.
+6. **Commit & Merge to Fork**:
+   ```bash
+   git commit -S -m "perf(devices): exact-type coordinate comparison fast-paths in LineQubit and GridQubit"
+   git checkout main && git pull origin main && git merge --ff-only refactor-lean-qubit-eq && git push origin main
+   ```
+7. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+
+---
+
+### Task 1.9.5: Automated Benchmark Re-Validation & Zero-Regression Publication `[PHASE 1.9 - TRACK REVAL-1.9]`
+- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Dependencies**: Tasks 1.9.1, 1.9.2, 1.9.3, 1.9.4 Complete
+- **Target Files**:
+  - `benchmarks/run_head_to_head.py`
+  - `OPTIMIZATION_RESULTS_<date>.md`
+  - `benchmarks/head_to_head_results.json`
+- **Verification Goals**:
+  1. Re-execute the automated head-to-head empirical benchmark harness across dual worktrees (`upstream/main` vs `origin/main`).
+  2. Verify 100% Pareto superiority (zero regressions across all 26 test points, total runtime $\le 16\text{ s}$).
+  3. Publish updated `OPTIMIZATION_RESULTS_<date>.md`.
+
+#### Execution Workflow:
+1. **Execute Head-to-Head Harness**:
+   ```bash
+   python benchmarks/run_head_to_head.py
+   ```
+2. **Verify All Metrics**: Confirm zero regressions and total suite runtime.
+3. **Commit & Merge to Fork**:
+   ```bash
+   ./check/misc
+   git add OPTIMIZATION_RESULTS_*.md OPTIMISATION_COMPARISON_RESULTS_*.md benchmarks/head_to_head_results.json TASKS.md
+   git commit -S -m "docs: re-validate head-to-head benchmark demonstrating zero regressions after Phase 1.9 refactoring"
+   git push origin main
+   ```
+4. **Mark Finished**: Update status above to `[x] Completed (Commit: <commit_sha>)`.
+   Phase 1.9 Complete. Proceed to **Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)**.
+
+---
+
+## 8. Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)
 
 ### Task 2.1: Rust Workspace & Maturin Build Scaffolding `[PHASE 2 - WAVE 1]`
 - **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
