@@ -1196,7 +1196,7 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RESULTS_20260826_073241.md`), Phase 1.7 addresses remaining micro-architectural bottlenecks and parity points to guarantee 100% Pareto superiority before initiating Phase 2.
 
 ### Task 1.7.1: Symmetric 2Q Gate Equality & Direct Primitive Coordinate Comparisons `[PHASE 1.7 - TRACK FAST-EQ: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: c7ad05f80b1e4aebdbfeebda33989c7459146f68)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run concurrently with Tasks 1.7.2, 1.7.3, 1.7.4 (Touches gate_operation.py and coordinate equality)**
@@ -1328,7 +1328,7 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 ---
 
 ### Task 1.7.3: Lean `LineQubit` 2-Slot Layout (56 Bytes) & Class-Level Dimension Trait `[PHASE 1.7 - TRACK LEAN-LINE: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: c7ad05f80b1e4aebdbfeebda33989c7459146f68)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run concurrently with Tasks 1.7.1, 1.7.2, 1.7.4 (Touches only line_qubit.py)**
