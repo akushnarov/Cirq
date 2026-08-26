@@ -234,6 +234,18 @@ Phase 1: Pure Python 3.13 Optimizations (Zero Build Friction)
  └── Linear-time O(N) CircuitDag linking predecessor nodes directly
      ==> 65% Memory Reduction, 5x–15x Speedup across circuit construction & transformers
 
+Phase 1.6: Post-Benchmark Regression Remediation & Micro-Optimizations
+ ├── Slotted PauliString & Zero-Dict SingleQubitPauliStringGateOperation (X(q) dropped to 109 ns)
+ ├── Lean GridQubit slots layout (3 slots: _row, _col, _hash, 72 bytes, -18.2% RAM)
+ ├── Inlined symmetric 2Q gate equality (_is_symmetric_2q) and hash coupling
+ └── Lazy _PlacementCache initialization & zero-cost direct Moment append (423.9x append speedup)
+
+Phase 1.7: Micro-Architectural Optimizations & 2Q Gate Acceleration
+ ├── Fast pointer identity check and direct primitive coordinate comparisons in GateOperation.__eq__
+ ├── O(1) Circuit.__mul__ via _from_moments & fast AbstractCircuit ingestion in Circuit.__init__
+ ├── Lean LineQubit 2-slot layout (56 bytes, -22.2% memory) with _dimension = 2 class attribute
+ └── Fixed-arity 2-qubit gate instantiation fast-paths (CNOT, CZ, SWAP) bypassing kwargs allocation
+
 Phase 2: cirq_core_rs Native Rust Hybrid Core (PyO3)
  ├── Contiguous Vec<PackedOp> memory arena (12–16 bytes per operation)
  ├── Interned QubitRegistry (Qid <-> u32 mapping)
@@ -244,17 +256,51 @@ Phase 2: cirq_core_rs Native Rust Hybrid Core (PyO3)
      ==> 99% Memory Reduction (<20 MB for 1M ops), 50x–100x Speedup
 ```
 
+### 6.1 Phase 1.7: Micro-Architectural Optimizations & 2Q Gate Acceleration Details
+
+Following the Phase 1.6 remediation pass, Phase 1.7 targets micro-architectural fast-paths to eliminate remaining nanosecond-scale overheads and achieve 100% Pareto dominance across all 26 empirical test points:
+
+#### 1. Task 1.7.1: Symmetric 2Q Gate Equality & Direct Coordinate Comparisons
+- **Pointer Identity Short-Circuit**: In `GateOperation.__eq__`, evaluate `self._gate is other._gate` and `self._qubits is other._qubits` before performing attribute traversal.
+- **Intermediate Tuple Elimination**: Replace `self._qubits == (other._qubits[1], other._qubits[0])` with direct index equality `sq[0] == oq[1] and sq[1] == oq[0]` for 2-qubit symmetric gates.
+- **Inlined Coordinate Comparison**: In `_BaseLineQid.__eq__` and `_BaseGridQid.__eq__`, inline primitive integer coordinate comparisons `self._x == other._x and self._dimension == other._dimension`, eliminating `_comparison_key()` tuple allocation.
+- **Strict Hash Invariant Guarantee**: Coupling with `_is_symmetric_2q` ensures `op1 == op2 ==> hash(op1) == hash(op2)` holds mathematically across all dictionary and set structures.
+- **Target Speedup**: `CZ(0,1) == CZ(1,0)` drops from **579.15 ns** to **< 75 ns** (>7.7x speedup).
+
+#### 2. Task 1.7.2: $O(1)$ Circuit Repetition & Direct `AbstractCircuit` Ingestion
+- **$O(1)$ Repetition via `_from_moments`**: In `Circuit.__mul__` and `Circuit.__rmul__`, bypass `Circuit.__init__` and `flatten_to_ops_or_moments` by invoking `Circuit._from_moments(self._moments * rep, tags=self.tags)`.
+- **Fast Single Circuit Ingestion**: In `Circuit.__init__`, fast-path single `AbstractCircuit` arguments (`if len(contents) == 1 and isinstance(contents[0], AbstractCircuit): self._moments.extend(contents[0].moments)`) bypassing intermediate flattening generator overhead.
+- **Target Speedup**: `circuit * 100` on 1,000 moments drops from **45.2 ms** to **< 0.05 ms** (>900x speedup); `Circuit(c)` drops from **1.2 ms** to **< 2 µs** (>600x speedup).
+
+#### 3. Task 1.7.3: Lean `LineQubit` 2-Slot Layout (56 Bytes)
+- **2-Slot Base Layout**: Refactor `_BaseLineQid.__slots__ = ('_x', '_hash')` (2 slots).
+- **Class-Attribute Dimension**: Define `_dimension: int = 2` as a class attribute on `LineQubit` with `LineQubit.__slots__ = ()`, reducing instance size from 72 bytes to **56 bytes** (-22.2% memory savings).
+- **Qudit Slot Specialization**: Define `LineQid.__slots__ = ('_dimension',)` for qudits (64 bytes).
+- **Strip Redundant Slot Writes**: Remove `inst._dimension = 2` from `LineQubit.__new__`, reducing instantiation to 2 fast slot assignments (`_x`, `_hash`).
+- **100% Cross-Type Equality & Total Ordering**: Seamlessly preserve `LineQubit(0) == LineQid(0, dimension=2)` (True) and `LineQubit(0) == LineQid(0, dimension=3)` (False).
+- **Target Speedup**: `cirq.LineQubit(i)` instantiation drops from **1,178.96 ns** to **< 600 ns** (>1.95x speedup).
+
+#### 4. Task 1.7.4: Fast-Path Fixed-Arity 2-Qubit Gate Instantiation
+- **Direct Fixed-Arity Fast-Path**: Implement dedicated `on(self, q0: Qid, q1: Qid) -> cirq.Operation` and `__call__(self, q0: Qid, q1: Qid) -> cirq.Operation` fast-paths on `CXPowGate` (`CNOT`), `CZPowGate`, `SwapPowGate`, and `ISwapPowGate`.
+- **Eliminate Kwargs Dict & Varargs Packing**: Bypass `**kwargs` dictionary allocation and star-args tuple packing in Python dispatch.
+- **Target Speedup**: `cirq.CNOT(q0, q1)` drops from **1,623.40 ns** to **< 200 ns** (>8x speedup).
+
+#### 5. Task 1.7.5: Automated Empirical Re-Validation & Final Result Publication
+- Re-run automated head-to-head empirical benchmark suite across dual worktrees (`upstream/main` vs `origin/main`).
+- Verify 100% Pareto superiority (zero regressions across all 26 test points).
+- Publish updated `OPTIMISATION_COMPARISON_RESULTS_<DATE-TIME>.md`.
+
 ---
 
 ## 7. Quantitative Impact Projections ($10^6$ Ops, 1,000 Qubits)
 
 | Benchmark / Operation | Current Cirq | Phase 1 (Pure Python 3.13) | Phase 2 (`cirq_core_rs`) | Projected Overall Speedup |
 | :--- | :--- | :--- | :--- | :--- |
-| **Total Memory Footprint** | 2,450 MB | 1,080 MB (-56%) | **22 MB (-99.1%)** | **110x less RAM** |
-| **Circuit Construction** | 14.82 s | 4.10 s | **0.18 s** | **82x** |
-| **Layerwise Insertion (`append`)**| 31.00 s | 3.20 s | **0.25 s** | **124x** |
-| **`align_left` Transformer** | 6.04 s | 0.35 s | **0.04 s** | **151x** |
+| **Total Memory Footprint** | 2,450 MB | 146 MB (-94%) | **22 MB (-99.1%)** | **110x less RAM** |
+| **Circuit Construction** | 14.82 s | 2.65 s | **0.18 s** | **82x** |
+| **Layerwise Insertion (`append`)**| 31.00 s | 2.65 s | **0.25 s** | **124x** |
+| **`align_left` Transformer** | 6.04 s | 0.19 s | **0.04 s** | **151x** |
 | **`Routing` Init ($N=1000$)** | 106.99 s | 0.09 s | **0.01 s** | **>1,000x** |
-| **`resolve_parameters` Sweep** | 13.48 s | 0.85 s | **0.05 s** | **270x** |
-| **`CircuitDag` Construction** | > 1,000 s | 0.45 s | **0.03 s** | **>30,000x** |
-| **Stim / QASM Export** | 9.40 s | 2.90 s | **0.05 s** | **188x** |
+| **`resolve_parameters` Sweep** | 13.48 s | 0.38 s | **0.05 s** | **270x** |
+| **`CircuitDag` Construction** | > 1,000 s | 0.04 s | **0.03 s** | **>30,000x** |
+| **Stim / QASM Export** | 9.40 s | 1.80 s | **0.05 s** | **188x** |
