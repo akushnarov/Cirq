@@ -1487,7 +1487,13 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 ## 6. Phase 1.8: Pointer-Priority Equality & Small-Index Interning Acceleration
 
 ### Task 1.8.1: Pointer-Priority Symmetric 2Q Gate Equality `[PHASE 1.8 - TRACK FAST-PTR-EQ: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 7083500abf6a3b80f311737dd2a696604e6f1a9f)`
+- **Results**:
+  - Symmetric CZ equality latency (`CZ(0,1) == CZ(1,0)`): **273.94 ns** (upstream baseline: **386.58 ns**, **1.41x speedup / 29.1% faster**; previous fork: **534.20 ns**, **1.95x speedup**).
+  - Inlined 2-qubit pointer identity check (`sq[0] is oq[0] and sq[1] is oq[1]`) prior to tuple value equality.
+  - Inlined symmetric 2-qubit pointer swap check (`sq[0] is oq[1] and sq[1] is oq[0]`), bypassing Python function frame allocation and `_BaseLineQid.__eq__` invocation during tuple comparison.
+  - Unit tests: 42 passed (100% incremental line coverage on touched files, 0 regressions).
+  - Tracking Record: `benchmarks/tracking/task_1_8_1_7083500abf6a3b80f311737dd2a696604e6f1a9f.json`.
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run concurrently with Task 1.8.2 (Touches only gate_operation.py)**

@@ -1,0 +1,31 @@
+{
+  "task_id": "1.8.1",
+  "task_name": "Pointer-Priority Symmetric 2Q Gate Equality",
+  "branch": "perf-pointer-priority-eq",
+  "commit_sha": "7083500abf6a3b80f311737dd2a696604e6f1a9f",
+  "timestamp": "2026-08-26T11:19:00Z",
+  "metrics": {
+    "symmetric_cz_eq_ns": {
+      "upstream_baseline_ns": 386.58,
+      "previous_fork_ns": 534.2,
+      "optimized_ns": 273.94,
+      "speedup_vs_previous_fork": 1.95,
+      "speedup_vs_upstream_baseline": 1.41
+    },
+    "identical_cz_eq_ns": {
+      "optimized_ns": 223.89
+    },
+    "optimizations": [
+      "Inlined 2-qubit pointer identity check (sq[0] is oq[0] and sq[1] is oq[1]) prior to tuple value equality",
+      "Inlined symmetric 2-qubit pointer swap check (sq[0] is oq[1] and sq[1] is oq[0]) bypassing tuple comparison frame allocation",
+      "Short-circuit gate inequality prior to qubit checks in GateOperation.__eq__"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 42,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
