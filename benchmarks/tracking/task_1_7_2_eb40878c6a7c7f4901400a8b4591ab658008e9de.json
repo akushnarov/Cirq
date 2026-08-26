@@ -1,0 +1,30 @@
+{
+  "task_id": "1.7.2",
+  "task_name": "O(1) Circuit Repetition & Direct AbstractCircuit Ingestion",
+  "branch": "perf-fast-circuit-mul-ingest",
+  "commit_sha": "eb40878c6a7c7f4901400a8b4591ab658008e9de",
+  "timestamp": "2026-08-26T08:44:00Z",
+  "metrics": {
+    "circuit_mul_100_latency_us": {
+      "baseline_us": 41.21,
+      "optimized_us": 0.83,
+      "speedup_factor": 49.65
+    },
+    "circuit_ingestion_latency_us": {
+      "baseline_us": 2.68,
+      "optimized_us": 0.6,
+      "speedup_factor": 4.47
+    },
+    "optimizations": [
+      "Optimized Circuit.__mul__ and Circuit.__rmul__ to directly construct repeated circuits using _from_moments(self._moments * rep, tags=self.tags), with O(1) empty circuit on rep<=0 and copy() on rep==1",
+      "Added direct fast ingestion path for single AbstractCircuit instances in Circuit.__init__ bypassing flatten_to_ops_or_moments and moment validation"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 483,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
