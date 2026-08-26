@@ -1,0 +1,34 @@
+{
+  "task_id": "1.8.2",
+  "task_name": "Small-Index Static Array Interning for Qubits",
+  "branch": "perf-fast-qubit-cache",
+  "commit_sha": "6a4eedee55d4244acfdfea678e82c00e8fb445b9",
+  "timestamp": "2026-08-26T11:18:33Z",
+  "metrics": {
+    "line_qubit_instantiation_ns": {
+      "baseline_ns": 1156.0,
+      "optimized_ns": 209.60,
+      "speedup_vs_baseline": 5.52
+    },
+    "grid_qubit_instantiation_ns": {
+      "baseline_ns": 1283.0,
+      "optimized_ns": 236.50,
+      "speedup_vs_baseline": 5.42
+    },
+    "optimizations": [
+      "Introduced _FAST_LINE_QUBIT_CACHE static list of 512 elements for fast LineQubit interning",
+      "Introduced _FAST_GRID_QUBIT_CACHE static 32x32 array for fast GridQubit interning",
+      "Inlined fast-path check on cls is LineQubit and 0 <= x < 512 returning pre-cached instance in O(1)",
+      "Inlined fast-path check on cls is GridQubit and 0 <= row < 32 and 0 <= col < 32 returning pre-cached instance in O(1)",
+      "Maintained full fallback to WeakValueDictionary _cache for qudits, negative, and large indices",
+      "Added comprehensive unit tests covering fast cache hits, out-of-bound fallbacks, and qudits"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 65,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}

@@ -1548,7 +1548,16 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 ---
 
 ### Task 1.8.2: Small-Index Static Array Interning for Qubits `[PHASE 1.8 - TRACK FAST-QUBIT-CACHE: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 6a4eedee55d4244acfdfea678e82c00e8fb445b9)`
+- **Results**:
+  - `LineQubit(x)` ($x < 512$) instantiation latency: **209.60 ns** (baseline: **1,156.00 ns**, **5.52x speedup**).
+  - `GridQubit(r, c)` ($r, c < 32$) instantiation latency: **236.50 ns** (baseline: **1,283.00 ns**, **5.42x speedup**).
+  - Implemented `_FAST_LINE_QUBIT_CACHE` static 512-element list in `line_qubit.py` for $O(1)$ LineQubit interning bypassing `weakref.WeakValueDictionary` overhead.
+  - Implemented `_FAST_GRID_QUBIT_CACHE` static $32\times 32$ nested list in `grid_qubit.py` for $O(1)$ GridQubit interning.
+  - Inlined fast pointer/type checks in `LineQubit.__new__` and `GridQubit.__new__`.
+  - Verified 100% transparent fallback to `_cache` for qudits (`LineQid`, `GridQid`), negative coordinates, and indices outside fast bounds.
+  - Unit tests: 65 passed (100% incremental line coverage on touched files, 0 regressions).
+  - Tracking Record: `benchmarks/tracking/task_1_8_2_6a4eedee55d4244acfdfea678e82c00e8fb445b9.json`.
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run concurrently with Task 1.8.1 (Touches line_qubit.py and grid_qubit.py)**
