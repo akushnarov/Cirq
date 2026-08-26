@@ -161,8 +161,9 @@ def run_all_benchmarks():
 
     # Domain 3: Surface Code QEC
     for d in [3, 5, 7, 9, 11, 15, 21, 31]:
-        t_mbm = measure_time(lambda d=d: benchmark_surface_code_circuit(d, d, moment_by_moment=True), number=1, repeat=1) * 1000
-        t_obo = measure_time(lambda d=d: benchmark_surface_code_circuit(d, d, moment_by_moment=False), number=1, repeat=1) * 1000
+        rep = 5 if d <= 5 else 2 if d <= 11 else 1
+        t_mbm = measure_time(lambda d=d: benchmark_surface_code_circuit(d, d, moment_by_moment=True), number=1, repeat=rep) * 1000
+        t_obo = measure_time(lambda d=d: benchmark_surface_code_circuit(d, d, moment_by_moment=False), number=1, repeat=rep) * 1000
         results[f"sc_d{d}_mbm"] = round(t_mbm, 3 if d <= 21 else 2)
         results[f"sc_d{d}_obo"] = round(t_obo, 3 if d <= 21 else 2)
         print(f"  [worker] Done surface code d={d}: MbM={results[f'sc_d{d}_mbm']}ms, ObO={results[f'sc_d{d}_obo']}ms", flush=True)
