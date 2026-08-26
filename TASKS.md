@@ -1381,7 +1381,7 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 ---
 
 ### Task 1.7.4: Fast-Path Fixed-Arity 2-Qubit Gate Instantiation (`CXPowGate`, `CZPowGate`, `SwapPowGate`) `[PHASE 1.7 - TRACK FAST-2Q: PARALLEL]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: 9d17ae1fb727e87ab75ceaa5fc707574ed0cb585)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Concurrency**: **Can run concurrently with Tasks 1.7.1, 1.7.2, 1.7.3 (Touches common_gates.py and swap_gates.py)**

@@ -2,7 +2,7 @@
   "task_id": "1.7.4",
   "task_name": "Fast-Path Fixed-Arity 2-Qubit Gate Instantiation (CXPowGate, CZPowGate, SwapPowGate, ISwapPowGate)",
   "branch": "perf-fast-2q-gate-inst",
-  "commit_sha": "e265a16d3330468282f2f2a13a2aedc4044dd746",
+  "commit_sha": "9d17ae1fb727e87ab75ceaa5fc707574ed0cb585",
   "timestamp": "2026-08-26T08:49:00Z",
   "metrics": {
     "cnot_q0_q1_latency_ns": {
