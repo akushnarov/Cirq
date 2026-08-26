@@ -494,3 +494,43 @@ def test_weakref_gc_lifecycle() -> None:
     gc.collect()
     assert qid_ref() is None
     assert qid_key not in cirq.GridQid._cache
+
+
+def test_fast_grid_qubit_cache() -> None:
+    from cirq.devices.grid_qubit import _FAST_GRID_QUBIT_CACHE
+
+    # Small index cached
+    q00 = cirq.GridQubit(0, 0)
+    q00_again = cirq.GridQubit(0, 0)
+    assert q00 is q00_again
+    assert _FAST_GRID_QUBIT_CACHE[0][0] is q00
+    assert cirq.GridQubit._cache[(0, 0)] is q00
+
+    q31_31 = cirq.GridQubit(31, 31)
+    q31_31_again = cirq.GridQubit(31, 31)
+    assert q31_31 is q31_31_again
+    assert _FAST_GRID_QUBIT_CACHE[31][31] is q31_31
+
+    # Large row/col not in fast cache but in _cache
+    q32_0 = cirq.GridQubit(32, 0)
+    q32_0_again = cirq.GridQubit(32, 0)
+    assert q32_0 is q32_0_again
+    assert cirq.GridQubit._cache[(32, 0)] is q32_0
+
+    q0_32 = cirq.GridQubit(0, 32)
+    q0_32_again = cirq.GridQubit(0, 32)
+    assert q0_32 is q0_32_again
+    assert cirq.GridQubit._cache[(0, 32)] is q0_32
+
+    # Negative coordinates
+    q_neg = cirq.GridQubit(-1, 5)
+    q_neg_again = cirq.GridQubit(-1, 5)
+    assert q_neg is q_neg_again
+    assert cirq.GridQubit._cache[(-1, 5)] is q_neg
+
+    # Qudit falls back cleanly
+    qid = cirq.GridQid(0, 0, dimension=3)
+    assert qid.row == 0 and qid.col == 0
+    assert qid.dimension == 3
+    assert qid is not q00
+    assert q00 == cirq.GridQid(0, 0, dimension=2)

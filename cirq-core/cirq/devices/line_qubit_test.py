@@ -336,3 +336,38 @@ def test_non_integer_index(dtype) -> None:
     assert q.x == 5.5
     assert q.x == dtype(5.5)
     assert isinstance(q.x, dtype)
+
+
+def test_fast_line_qubit_cache() -> None:
+    from cirq.devices.line_qubit import _FAST_LINE_QUBIT_CACHE
+
+    # Small index cached
+    q0 = cirq.LineQubit(0)
+    q0_again = cirq.LineQubit(0)
+    assert q0 is q0_again
+    assert _FAST_LINE_QUBIT_CACHE[0] is q0
+    assert cirq.LineQubit._cache[0] is q0
+
+    q511 = cirq.LineQubit(511)
+    q511_again = cirq.LineQubit(511)
+    assert q511 is q511_again
+    assert _FAST_LINE_QUBIT_CACHE[511] is q511
+
+    # Large index not in fast cache but in _cache
+    q512 = cirq.LineQubit(512)
+    q512_again = cirq.LineQubit(512)
+    assert q512 is q512_again
+    assert cirq.LineQubit._cache[512] is q512
+
+    # Negative index
+    q_neg = cirq.LineQubit(-1)
+    q_neg_again = cirq.LineQubit(-1)
+    assert q_neg is q_neg_again
+    assert cirq.LineQubit._cache[-1] is q_neg
+
+    # Qudit falls back cleanly
+    qid = cirq.LineQid(0, dimension=3)
+    assert qid.x == 0
+    assert qid.dimension == 3
+    assert qid is not q0
+    assert q0 == cirq.LineQid(0, dimension=2)

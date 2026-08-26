@@ -374,6 +374,9 @@ class GridQid(_BaseGridQid):
         return protocols.obj_to_dict_helper(self, ['row', 'col', 'dimension'])
 
 
+_FAST_GRID_QUBIT_CACHE: list[list[GridQubit | None]] = [[None] * 32 for _ in range(32)]
+
+
 class GridQubit(_BaseGridQid):
     """A qubit on a 2d square lattice.
 
@@ -405,6 +408,24 @@ class GridQubit(_BaseGridQid):
             row: the row coordinate
             col: the column coordinate
         """
+        if (
+            cls is GridQubit
+            and type(row) is int
+            and type(col) is int
+            and 0 <= row < 32
+            and 0 <= col < 32
+        ):
+            inst = _FAST_GRID_QUBIT_CACHE[row][col]
+            if inst is not None:
+                return inst
+            inst = super().__new__(cls)
+            inst._row = row
+            inst._col = col
+            inst._hash = hash(col) * 1_000_003 + hash(row)
+            _FAST_GRID_QUBIT_CACHE[row][col] = inst
+            cls._cache[(row, col)] = inst
+            return inst
+
         key = (row, col)
         inst = cls._cache.get(key)
         if inst is None:

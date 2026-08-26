@@ -284,6 +284,9 @@ class LineQid(_BaseLineQid):
         return protocols.obj_to_dict_helper(self, ['x', 'dimension'])
 
 
+_FAST_LINE_QUBIT_CACHE: list[LineQubit | None] = [None] * 512
+
+
 class LineQubit(_BaseLineQid):
     """A qubit on a 1d lattice with nearest-neighbor connectivity.
 
@@ -314,6 +317,17 @@ class LineQubit(_BaseLineQid):
         Args:
             x: The x coordinate.
         """
+        if cls is LineQubit and type(x) is int and 0 <= x < 512:
+            inst = _FAST_LINE_QUBIT_CACHE[x]
+            if inst is not None:
+                return inst
+            inst = super().__new__(cls)
+            inst._x = x
+            inst._hash = hash(x)
+            _FAST_LINE_QUBIT_CACHE[x] = inst
+            cls._cache[x] = inst
+            return inst
+
         inst = cls._cache.get(x)
         if inst is None:
             inst = super().__new__(cls)
