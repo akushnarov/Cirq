@@ -1882,6 +1882,10 @@ class Circuit(AbstractCircuit):
         self._parameter_names: Set[str] | None = None
         if not contents:
             return
+        if len(contents) == 1 and isinstance(contents[0], AbstractCircuit):
+            self._placement_cache = None
+            self._moments.extend(contents[0].moments)
+            return
         flattened_contents = tuple(ops.flatten_to_ops_or_moments(contents))
         if all(isinstance(c, Moment) for c in flattened_contents):
             self._placement_cache = None
@@ -2077,15 +2081,18 @@ class Circuit(AbstractCircuit):
         self._mutated()
         return self
 
-    def __mul__(self, repetitions: _INT_TYPE):
+    def __mul__(self, repetitions: _INT_TYPE) -> Circuit:
         if not isinstance(repetitions, (int, np.integer)):
             return NotImplemented
-        return Circuit(self._moments * int(repetitions), tags=self.tags)
+        rep = int(repetitions)
+        if rep <= 0:
+            return Circuit(tags=self.tags)
+        if rep == 1:
+            return self.copy()
+        return self._from_moments(self._moments * rep, tags=self.tags)
 
-    def __rmul__(self, repetitions: _INT_TYPE):
-        if not isinstance(repetitions, (int, np.integer)):
-            return NotImplemented
-        return self * int(repetitions)
+    def __rmul__(self, repetitions: _INT_TYPE) -> Circuit:
+        return self.__mul__(repetitions)
 
     def __pow__(self, exponent: int) -> cirq.Circuit:
         """A circuit raised to a power, only valid for exponent -1, the inverse.
