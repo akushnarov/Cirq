@@ -42,7 +42,7 @@ class _BaseGridQid(ops.Qid):
     def __hash__(self) -> int:
         return self._hash
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
             return self is other or (
@@ -52,7 +52,7 @@ class _BaseGridQid(ops.Qid):
             )
         return NotImplemented
 
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
             return self is not other and (
@@ -62,7 +62,7 @@ class _BaseGridQid(ops.Qid):
             )
         return NotImplemented
 
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
             if self._row != other._row:
@@ -72,7 +72,7 @@ class _BaseGridQid(ops.Qid):
             return self._dimension < other._dimension
         return super().__lt__(other)
 
-    def __le__(self, other) -> bool:
+    def __le__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
             if self._row != other._row:
@@ -82,7 +82,7 @@ class _BaseGridQid(ops.Qid):
             return self._dimension <= other._dimension
         return super().__le__(other)
 
-    def __ge__(self, other) -> bool:
+    def __ge__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
             if self._row != other._row:
@@ -92,7 +92,7 @@ class _BaseGridQid(ops.Qid):
             return self._dimension >= other._dimension
         return super().__ge__(other)
 
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseGridQid):
             if self._row != other._row:

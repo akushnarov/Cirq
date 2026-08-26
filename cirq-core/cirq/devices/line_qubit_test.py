@@ -38,6 +38,35 @@ def test_eq() -> None:
     eq.add_equality_group(cirq.LineQid(1, dimension=3))
 
 
+def test_cross_type_equality() -> None:
+    assert cirq.LineQubit(0) == cirq.LineQid(0, dimension=2)
+    assert cirq.LineQid(0, dimension=2) == cirq.LineQubit(0)
+    assert cirq.LineQubit(0) != cirq.LineQid(0, dimension=3)
+    assert cirq.LineQid(0, dimension=3) != cirq.LineQubit(0)
+    assert cirq.LineQubit(1) == cirq.LineQid(1, dimension=2)
+    assert cirq.LineQubit(1) != cirq.LineQid(2, dimension=2)
+
+
+def test_slots_and_lean_layout() -> None:
+    from cirq.devices.line_qubit import _BaseLineQid
+
+    assert _BaseLineQid.__slots__ == ('_x', '_hash')
+    assert cirq.LineQubit.__slots__ == ()
+    assert cirq.LineQid.__slots__ == ('_dimension',)
+
+    q = cirq.LineQubit(10)
+    qid = cirq.LineQid(10, dimension=3)
+
+    assert not hasattr(q, '__dict__')
+    assert not hasattr(qid, '__dict__')
+
+    # Verify class attribute on LineQubit
+    assert cirq.LineQubit._dimension == 2
+    assert q._dimension == 2
+    assert q.dimension == 2
+    assert qid.dimension == 3
+
+
 def test_str() -> None:
     assert str(cirq.LineQubit(5)) == 'q(5)'
     assert str(cirq.LineQid(5, dimension=3)) == 'q(5) (d=3)'

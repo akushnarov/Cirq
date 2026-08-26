@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 class _BaseLineQid(ops.Qid):
     """The base class for `LineQid` and `LineQubit`."""
 
-    __slots__ = ('_x', '_dimension', '_hash')
+    __slots__ = ('_x', '_hash')
 
     _x: int
     _dimension: int
@@ -39,13 +39,13 @@ class _BaseLineQid(ops.Qid):
     def __hash__(self) -> int:
         return self._hash
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseLineQid):
             return self is other or (self._x == other._x and self._dimension == other._dimension)
         return NotImplemented
 
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseLineQid):
             return self is not other and (
@@ -53,7 +53,7 @@ class _BaseLineQid(ops.Qid):
             )
         return NotImplemented
 
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseLineQid):
             return self._x < other._x or (
@@ -61,7 +61,7 @@ class _BaseLineQid(ops.Qid):
             )
         return super().__lt__(other)
 
-    def __le__(self, other) -> bool:
+    def __le__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseLineQid):
             return self._x < other._x or (
@@ -69,7 +69,7 @@ class _BaseLineQid(ops.Qid):
             )
         return super().__le__(other)
 
-    def __ge__(self, other) -> bool:
+    def __ge__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseLineQid):
             return self._x > other._x or (
@@ -77,7 +77,7 @@ class _BaseLineQid(ops.Qid):
             )
         return super().__ge__(other)
 
-    def __gt__(self, other) -> bool:
+    def __gt__(self, other: Any) -> bool:
         # Explicitly implemented for performance (vs delegating to Qid).
         if isinstance(other, _BaseLineQid):
             return self._x > other._x or (
@@ -186,7 +186,9 @@ class LineQid(_BaseLineQid):
 
     """
 
-    __slots__ = ()
+    __slots__ = ('_dimension',)
+
+    _dimension: int
 
     # Cache of existing LineQid instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
@@ -300,6 +302,7 @@ class LineQubit(_BaseLineQid):
     """
 
     __slots__ = ()
+    _dimension: int = 2
 
     # Cache of existing LineQubit instances, returned by __new__ if available.
     # Holds weak references so instances can still be garbage collected.
@@ -315,7 +318,6 @@ class LineQubit(_BaseLineQid):
         if inst is None:
             inst = super().__new__(cls)
             inst._x = x
-            inst._dimension = 2
             inst._hash = hash(x)
             cls._cache[x] = inst
         return inst
