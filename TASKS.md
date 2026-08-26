@@ -1439,7 +1439,7 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
 ---
 
 ### Task 1.7.5: Automated Head-to-Head Benchmark Re-Validation & Results Generation `[PHASE 1.7 - TRACK REVAL-1.7]`
-- **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->
+- **Status**: `[x] Completed (Commit: fe06f650)`
 - **Priority**: `P0`
 - **Estimated Effort**: 0.5 days
 - **Dependencies**: Tasks 1.7.1, 1.7.2, 1.7.3, 1.7.4 Complete
