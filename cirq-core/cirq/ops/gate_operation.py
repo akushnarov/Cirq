@@ -178,17 +178,23 @@ class GateOperation(raw_types.Operation):
             oq = other._qubits
             if sq is oq:
                 return True
-            if len(sq) == 2 and len(oq) == 2:
+            n_sq = len(sq)
+            n_oq = len(oq)
+            if n_sq == 1 and n_oq == 1:
+                return sq[0] is oq[0] or sq[0] == oq[0]
+            if n_sq == 2 and n_oq == 2:
                 if sq[0] is oq[0] and sq[1] is oq[1]:
                     return True
                 if getattr(self._gate, '_is_symmetric_2q', False):
                     if sq[0] is oq[1] and sq[1] is oq[0]:
                         return True
+                    return (sq[0] == oq[0] and sq[1] == oq[1]) or (
+                        sq[0] == oq[1] and sq[1] == oq[0]
+                    )
+                if sq[0] == oq[0] and sq[1] == oq[1]:
+                    return True
             if sq == oq:
                 return True
-            if getattr(self._gate, '_is_symmetric_2q', False):
-                if len(sq) == 2 and len(oq) == 2:
-                    return sq[0] == oq[1] and sq[1] == oq[0]
             if getattr(self._gate, '_is_interchangeable', False) or isinstance(
                 self._gate, gate_features.InterchangeableQubitsGate
             ):

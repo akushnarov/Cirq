@@ -76,3 +76,12 @@ def test_multi_qubit_gate_validate() -> None:
         g.validate_args([a, b])
     with pytest.raises(ValueError):
         g.validate_args([a, b, c, d])
+
+
+def test_symmetric_2q_gate_trait() -> None:
+    gate = cirq.Symmetric2QGate()
+    assert isinstance(gate, cirq.InterchangeableQubitsGate)
+    assert gate._is_symmetric_2q is True
+    assert gate._is_interchangeable is True
+    assert gate.qubit_index_to_equivalence_group_key(0) == 0
+    assert gate.qubit_index_to_equivalence_group_key(1) == 0

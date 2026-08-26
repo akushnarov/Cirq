@@ -57,9 +57,8 @@ def _half_pi_mod_pi(param: cirq.TParamVal) -> bool:
 
 
 @value.value_equality(approximate=True)
-class FSimGate(gate_features.InterchangeableQubitsGate, raw_types.Gate):
+class FSimGate(gate_features.Symmetric2QGate, raw_types.Gate):
     _has_measurement_keys: bool = False
-    _is_symmetric_2q: bool = True
     r"""Fermionic simulation gate.
 
     Contains all two qubit interactions that preserve excitations, up to

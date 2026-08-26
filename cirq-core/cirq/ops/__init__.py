@@ -102,7 +102,10 @@ from cirq.ops.fourier_transform import (
 
 from cirq.ops.fsim_gate import FSimGate as FSimGate, PhasedFSimGate as PhasedFSimGate
 
-from cirq.ops.gate_features import InterchangeableQubitsGate as InterchangeableQubitsGate
+from cirq.ops.gate_features import (
+    InterchangeableQubitsGate as InterchangeableQubitsGate,
+    Symmetric2QGate as Symmetric2QGate,
+)
 
 from cirq.ops.gate_operation import GateOperation as GateOperation
 

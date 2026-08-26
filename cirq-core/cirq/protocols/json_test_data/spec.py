@@ -105,6 +105,7 @@ TestSpec = ModuleJsonTestSpec(
         # abstract, but not inspect.isabstract():
         'Device',
         'InterchangeableQubitsGate',
+        'Symmetric2QGate',
         'Pauli',
         'ABCMetaImplementAnyOneOf',
         'SimulatesAmplitudes',

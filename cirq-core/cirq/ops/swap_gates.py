@@ -41,8 +41,7 @@ if TYPE_CHECKING:
     import cirq
 
 
-class SwapPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate):
-    _is_symmetric_2q: bool = True
+class SwapPowGate(gate_features.Symmetric2QGate, eigen_gate.EigenGate):
     r"""The SWAP gate, possibly raised to a power. Exchanges qubits.
 
     SwapPowGate()**t = SwapPowGate(exponent=t) and acts on two qubits in the
@@ -182,8 +181,7 @@ class SwapPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate)
         return f'cirq.SwapPowGate(exponent={e}, global_shift={self._global_shift!r})'
 
 
-class ISwapPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate):
-    _is_symmetric_2q: bool = True
+class ISwapPowGate(gate_features.Symmetric2QGate, eigen_gate.EigenGate):
     r"""Rotates the |01⟩ vs |10⟩ subspace of two qubits around its Bloch X-axis.
 
     When exponent=1, swaps the two qubits and phases |01⟩ and |10⟩ by i. More

@@ -632,6 +632,7 @@ def test_symmetric_2q_gate_operation_equality_and_hashing() -> None:
     ]
 
     for gate in symmetric_gates:
+        assert isinstance(gate, cirq.Symmetric2QGate)
         assert getattr(gate, '_is_symmetric_2q', False) is True
         assert getattr(gate, '_is_interchangeable', False) is True
         op1 = gate(q0, q1)
@@ -682,3 +683,49 @@ def test_symmetric_2q_gate_operation_equality_and_hashing() -> None:
     op_3q_1 = cirq.CCNOT(q0, q1, q2)
     op_3q_2 = cirq.CCNOT(qid0, qid1, cirq.LineQid(2, dimension=2))
     assert op_3q_1 == op_3q_2
+
+
+def test_gate_operation_1q_equality_fast_path() -> None:
+    q0 = cirq.LineQubit(0)
+    q1 = cirq.LineQubit(1)
+    qid0 = cirq.LineQid(0, dimension=2)
+    assert qid0 is not q0 and qid0 == q0
+
+    op1 = cirq.X(q0)
+    op2 = cirq.X(q0)
+    op_nonptr = cirq.X(qid0)
+    op_diff_qubit = cirq.X(q1)
+    op_diff_gate = cirq.Y(q0)
+
+    # Identical pointer fast path
+    assert op1 == op2
+    assert op2 == op1
+
+    # Non-pointer qubit coordinate equality
+    assert op1 == op_nonptr
+    assert op_nonptr == op1
+
+    # Inequity
+    assert op1 != op_diff_qubit
+    assert op1 != op_diff_gate
+
+    # Hash invariant
+    assert hash(op1) == hash(op2)
+    assert hash(op1) == hash(op_nonptr)
+
+
+def test_gate_operation_2q_asymmetric_equality() -> None:
+    q0 = cirq.LineQubit(0)
+    q1 = cirq.LineQubit(1)
+    qid0 = cirq.LineQid(0, dimension=2)
+    qid1 = cirq.LineQid(1, dimension=2)
+    assert qid0 is not q0 and qid0 == q0
+    assert qid1 is not q1 and qid1 == q1
+
+    op_asym1 = cirq.CNOT(qid0, qid1)
+    op_asym2 = cirq.CNOT(q0, q1)
+    op_asym_swapped = cirq.CNOT(qid1, qid0)
+
+    assert op_asym1 == op_asym2
+    assert op_asym2 == op_asym1
+    assert op_asym1 != op_asym_swapped

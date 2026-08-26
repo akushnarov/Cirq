@@ -28,3 +28,14 @@ class InterchangeableQubitsGate:
     def qubit_index_to_equivalence_group_key(self, index: int) -> int:
         """Returns a key that differs between non-interchangeable qubits."""
         return 0
+
+
+class Symmetric2QGate(InterchangeableQubitsGate):
+    """Marker class indicating a 2-qubit gate symmetric under qubit exchange."""
+
+    _is_symmetric_2q: bool = True
+    _is_interchangeable: bool = True
+
+    def qubit_index_to_equivalence_group_key(self, index: int) -> int:
+        """Returns a key that differs between non-interchangeable qubits."""
+        return 0

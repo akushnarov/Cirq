@@ -324,6 +324,7 @@ from cirq.ops import (
     SQRT_ISWAP_INV as SQRT_ISWAP_INV,
     SWAP as SWAP,
     SwapPowGate as SwapPowGate,
+    Symmetric2QGate as Symmetric2QGate,
     SumOfProducts as SumOfProducts,
     T as T,
     TaggedOperation as TaggedOperation,
