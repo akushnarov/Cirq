@@ -111,6 +111,30 @@ class CircuitDag(networkx.DiGraph):
     ) -> CircuitDag:
         return CircuitDag.from_ops(circuit.all_operations(), can_reorder=can_reorder)
 
+    def _link_op_dependencies(self, op: cirq.Operation, new_node: Unique[cirq.Operation]) -> None:
+        """Links dependency edges for an operation based on qubit and key sharing."""
+        last_on_qubit = self._last_node_on_qubit
+        add_edge = self.add_edge
+        for q in op.qubits:
+            pred = last_on_qubit.get(q)
+            if pred is not None:
+                add_edge(pred, new_node)
+            last_on_qubit[q] = new_node
+        c_keys = cirq.control_keys(op)
+        last_on_mkey = self._last_node_on_mkey
+        if c_keys:
+            for k in c_keys:
+                pred = last_on_mkey.get(k)
+                if pred is not None:
+                    add_edge(pred, new_node)
+        m_keys = cirq.measurement_key_objs(op)
+        if m_keys:
+            for k in m_keys:
+                pred = last_on_mkey.get(k)
+                if pred is not None:
+                    add_edge(pred, new_node)
+                last_on_mkey[k] = new_node
+
     @staticmethod
     def from_ops(
         *operations: cirq.OP_TREE,
@@ -118,33 +142,14 @@ class CircuitDag(networkx.DiGraph):
     ) -> CircuitDag:
         dag = CircuitDag(can_reorder=can_reorder)
         if can_reorder is _disjoint_qubits or can_reorder == _disjoint_qubits:
-            last_on_qubit = dag._last_node_on_qubit
-            last_on_mkey = dag._last_node_on_mkey
             make_node = dag.make_node
             add_node = dag.add_node
-            add_edge = dag.add_edge
+            link_deps = dag._link_op_dependencies
             for op in ops.flatten_op_tree(operations):
                 op = cast(ops.Operation, op)
                 new_node = make_node(op)
                 add_node(new_node)
-                for q in op.qubits:
-                    pred = last_on_qubit.get(q)
-                    if pred is not None:
-                        add_edge(pred, new_node)
-                    last_on_qubit[q] = new_node
-                c_keys = cirq.control_keys(op)
-                if c_keys:
-                    for k in c_keys:
-                        pred = last_on_mkey.get(k)
-                        if pred is not None:
-                            add_edge(pred, new_node)
-                m_keys = cirq.measurement_key_objs(op)
-                if m_keys:
-                    for k in m_keys:
-                        pred = last_on_mkey.get(k)
-                        if pred is not None:
-                            add_edge(pred, new_node)
-                        last_on_mkey[k] = new_node
+                link_deps(op, new_node)
         else:
             for op in ops.flatten_op_tree(operations):
                 dag.append(cast(ops.Operation, op))
@@ -154,24 +159,7 @@ class CircuitDag(networkx.DiGraph):
         new_node = self.make_node(op)
         self.add_node(new_node)
         if self.can_reorder is _disjoint_qubits or self.can_reorder == _disjoint_qubits:
-            for q in op.qubits:
-                pred = self._last_node_on_qubit.get(q)
-                if pred is not None:
-                    self.add_edge(pred, new_node)
-                self._last_node_on_qubit[q] = new_node
-            c_keys = cirq.control_keys(op)
-            if c_keys:
-                for k in c_keys:
-                    pred = self._last_node_on_mkey.get(k)
-                    if pred is not None:
-                        self.add_edge(pred, new_node)
-            m_keys = cirq.measurement_key_objs(op)
-            if m_keys:
-                for k in m_keys:
-                    pred = self._last_node_on_mkey.get(k)
-                    if pred is not None:
-                        self.add_edge(pred, new_node)
-                    self._last_node_on_mkey[k] = new_node
+            self._link_op_dependencies(op, new_node)
         else:
             for node in list(self.nodes()):
                 if node is not new_node and not self.can_reorder(node.val, op):

@@ -249,8 +249,9 @@ def test_classical_controls_and_measurements() -> None:
     q0, q1 = cirq.LineQubit.range(2)
     m = cirq.measure(q0, key='m')
     c_op = cirq.X(q1).with_classical_controls('m')
-    circuit = cirq.Circuit(m, c_op)
+    m2 = cirq.measure(q1, key='m')
+    circuit = cirq.Circuit(m, c_op, m2)
     dag = cirq.CircuitDag.from_circuit(circuit)
     assert networkx.dag.is_directed_acyclic_graph(dag)
-    assert len(dag.nodes()) == 2
-    assert [(n1.val, n2.val) for n1, n2 in dag.edges()] == [(m, c_op)]
+    assert len(dag.nodes()) == 3
+    assert {(n1.val, n2.val) for n1, n2 in dag.edges()} == {(m, c_op), (m, m2), (c_op, m2)}
