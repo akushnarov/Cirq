@@ -172,22 +172,19 @@ class GateOperation(raw_types.Operation):
         if self is other:
             return True
         if type(self) is type(other):
-            if self._gate is other._gate or self._gate == other._gate:
-                if self._qubits is other._qubits or self._qubits == other._qubits:
-                    return True
-                if getattr(self._gate, '_is_symmetric_2q', False):
-                    if len(self._qubits) == 2 and len(other._qubits) == 2:
-                        return (
-                            self._qubits[0] == other._qubits[1]
-                            and self._qubits[1] == other._qubits[0]
-                        )
-                if getattr(self._gate, '_is_interchangeable', False) or isinstance(
-                    self._gate, gate_features.InterchangeableQubitsGate
-                ):
-                    return (
-                        self._group_interchangeable_qubits()
-                        == other._group_interchangeable_qubits()
-                    )
+            if not (self._gate is other._gate or self._gate == other._gate):
+                return False
+            sq = self._qubits
+            oq = other._qubits
+            if sq is oq or sq == oq:
+                return True
+            if getattr(self._gate, '_is_symmetric_2q', False):
+                if len(sq) == 2 and len(oq) == 2:
+                    return (sq[0] is oq[1] or sq[0] == oq[1]) and (sq[1] is oq[0] or sq[1] == oq[0])
+            if getattr(self._gate, '_is_interchangeable', False) or isinstance(
+                self._gate, gate_features.InterchangeableQubitsGate
+            ):
+                return self._group_interchangeable_qubits() == other._group_interchangeable_qubits()
             return False
         get_cls_other = getattr(other, '_value_equality_values_cls_', None)
         if get_cls_other is None:
