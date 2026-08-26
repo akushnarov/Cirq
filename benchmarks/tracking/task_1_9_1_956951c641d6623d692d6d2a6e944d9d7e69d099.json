@@ -1,0 +1,26 @@
+{
+  "task_id": "1.9.1",
+  "task_name": "CircuitDag Dependency Linking DRY Unification",
+  "branch": "refactor-dry-circuit-dag",
+  "commit_sha": "956951c641d6623d692d6d2a6e944d9d7e69d099",
+  "timestamp": "2026-08-26T12:24:00Z",
+  "metrics": {
+    "dag_10k_ops_latency_s": {
+      "upstream_baseline_s": 20.24,
+      "fork_dry_optimized_s": 0.031686,
+      "speedup_vs_upstream": 638.76
+    },
+    "optimizations": [
+      "Extracted _link_op_dependencies helper in CircuitDag for unified qubit and measurement/control key frontier edge linking",
+      "Refactored append() and from_ops() to reuse _link_op_dependencies, eliminating ~30 lines of duplicated code",
+      "Preserved linear O(N) DAG construction performance (< 0.035s for 10k operations)"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 19,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
