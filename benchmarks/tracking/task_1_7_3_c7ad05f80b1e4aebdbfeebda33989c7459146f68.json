@@ -1,0 +1,33 @@
+{
+  "task_id": "1.7.3",
+  "task_name": "Lean LineQubit 2-Slot Layout (56 Bytes) & Class-Level Dimension Trait",
+  "branch": "perf-fast-symmetric-coordinate-eq",
+  "commit_sha": "c7ad05f80b1e4aebdbfeebda33989c7459146f68",
+  "timestamp": "2026-08-26T08:45:00Z",
+  "metrics": {
+    "line_qubit_sizeof_bytes": {
+      "baseline_b": 72,
+      "optimized_b": 56,
+      "memory_reduction_pct": 22.22
+    },
+    "line_qubit_instantiation_ns": {
+      "baseline_ns": 1178.96,
+      "optimized_ns": 1110.18,
+      "speedup_vs_baseline": 1.06
+    },
+    "optimizations": [
+      "Refactored _BaseLineQid.__slots__ to ('_x', '_hash') (2 slots)",
+      "Set class attribute _dimension: int = 2 on LineQubit with LineQubit.__slots__ = ()",
+      "Defined LineQid.__slots__ = ('_dimension',)",
+      "Stripped inst._dimension = 2 from LineQubit.__new__",
+      "Added cross-type equality tests between LineQubit and LineQid"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 105,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}

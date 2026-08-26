@@ -1,0 +1,26 @@
+{
+  "task_id": "1.7.1",
+  "task_name": "Symmetric 2Q Gate Equality & Direct Primitive Coordinate Comparisons",
+  "branch": "perf-fast-symmetric-coordinate-eq",
+  "commit_sha": "c7ad05f80b1e4aebdbfeebda33989c7459146f68",
+  "timestamp": "2026-08-26T08:45:00Z",
+  "metrics": {
+    "symmetric_cz_eq_ns": {
+      "baseline_ns": 579.15,
+      "optimized_ns": 111.13,
+      "speedup_vs_baseline": 5.21
+    },
+    "optimizations": [
+      "Inlined direct pointer and coordinate comparisons in _BaseLineQid.__eq__ and _BaseGridQid.__eq__",
+      "Short-circuit gate identity guard before qubit checks in GateOperation.__eq__",
+      "Inlined symmetric 2Q qubit permutation check (sq[0] == oq[1] and sq[1] == oq[0]) eliminating tuple allocation"
+    ]
+  },
+  "verification": {
+    "unit_tests_passed": 105,
+    "incremental_coverage_pct": 100.0,
+    "misc_hygiene": "PASSED",
+    "ruff_lint": "PASSED",
+    "formatting": "PASSED"
+  }
+}
