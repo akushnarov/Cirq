@@ -1215,6 +1215,8 @@ class SingleQubitPauliStringGateOperation(  # type: ignore[misc]
                 raise TypeError(f'{pauli!r} is not a cirq.Pauli')
             if not isinstance(qubit, raw_types.Qid):
                 raise TypeError(f'{qubit!r} is not a cirq.Qid')
+        if qubit.dimension != 2:
+            raw_types._validate_qid_shape(pauli, (qubit,))
         self._gate = pauli
         self._qubits = (qubit,)
 

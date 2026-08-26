@@ -43,6 +43,7 @@ from cirq.ops import (
     controlled_gate,
     eigen_gate,
     gate_features,
+    gate_operation,
     global_phase_op,
     raw_types,
 )
@@ -1062,6 +1063,22 @@ class CZPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate):
     def _num_qubits_(self) -> int:
         return 2
 
+    def on(self, *qubits: cirq.Qid) -> cirq.Operation:
+        if len(qubits) == 2:
+            op = gate_operation.GateOperation.__new__(gate_operation.GateOperation)
+            op._gate = self
+            op._qubits = qubits if type(qubits) is tuple else tuple(qubits)
+            return op
+        return super().on(*qubits)
+
+    def __call__(self, *qubits: cirq.Qid, **kwargs) -> cirq.Operation:
+        if not kwargs and len(qubits) == 2:
+            op = gate_operation.GateOperation.__new__(gate_operation.GateOperation)
+            op._gate = self
+            op._qubits = qubits if type(qubits) is tuple else tuple(qubits)
+            return op
+        return super().__call__(*qubits, **kwargs)
+
     def _eigen_components(self) -> list[tuple[float, np.ndarray]]:
         return [(0, np.diag([1, 1, 1, 0])), (1, np.diag([0, 0, 0, 1]))]
 
@@ -1232,6 +1249,22 @@ class CXPowGate(eigen_gate.EigenGate):
 
     def _num_qubits_(self) -> int:
         return 2
+
+    def on(self, *qubits: cirq.Qid) -> cirq.Operation:
+        if len(qubits) == 2:
+            op = gate_operation.GateOperation.__new__(gate_operation.GateOperation)
+            op._gate = self
+            op._qubits = qubits if type(qubits) is tuple else tuple(qubits)
+            return op
+        return super().on(*qubits)
+
+    def __call__(self, *qubits: cirq.Qid, **kwargs) -> cirq.Operation:
+        if not kwargs and len(qubits) == 2:
+            op = gate_operation.GateOperation.__new__(gate_operation.GateOperation)
+            op._gate = self
+            op._qubits = qubits if type(qubits) is tuple else tuple(qubits)
+            return op
+        return super().__call__(*qubits, **kwargs)
 
     def _decompose_(self, qubits):
         c, t = qubits

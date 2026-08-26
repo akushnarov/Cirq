@@ -230,3 +230,34 @@ def test_riswap_hamiltonian(angle_rads) -> None:
 @pytest.mark.parametrize('angle_rads', (-np.pi / 5, 0.4, 2, np.pi))
 def test_riswap_has_consistent_protocols(angle_rads) -> None:
     cirq.testing.assert_implements_consistent_protocols(cirq.riswap(angle_rads))
+
+
+def test_swap_fast_instantiation() -> None:
+    q0, q1, q2 = cirq.LineQubit.range(3)
+    for gate in (
+        cirq.SWAP,
+        cirq.ISWAP,
+        cirq.SwapPowGate(exponent=0.5),
+        cirq.ISwapPowGate(exponent=0.5),
+    ):
+        # Test __call__ fast path
+        op1 = gate(q0, q1)
+        assert isinstance(op1, cirq.GateOperation)
+        assert op1.gate == gate
+        assert op1.qubits == (q0, q1)
+
+        # Test on fast path
+        op2 = gate.on(q0, q1)
+        assert isinstance(op2, cirq.GateOperation)
+        assert op2.gate == gate
+        assert op2.qubits == (q0, q1)
+
+        # Test fallback when arity != 2
+        with pytest.raises(ValueError):
+            _ = gate.on(q0)
+        with pytest.raises(ValueError):
+            _ = gate(q0)
+        with pytest.raises(ValueError):
+            _ = gate.on(q0, q1, q2)
+        with pytest.raises(ValueError):
+            _ = gate(q0, q1, q2)

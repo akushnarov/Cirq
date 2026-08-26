@@ -35,7 +35,7 @@ import sympy
 from cirq import protocols, value
 from cirq._compat import proper_repr
 from cirq._doc import document
-from cirq.ops import common_gates, eigen_gate, gate_features
+from cirq.ops import common_gates, eigen_gate, gate_features, gate_operation
 
 if TYPE_CHECKING:
     import cirq
@@ -74,6 +74,22 @@ class SwapPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate)
 
     def _num_qubits_(self) -> int:
         return 2
+
+    def on(self, *qubits: cirq.Qid) -> cirq.Operation:
+        if len(qubits) == 2:
+            op = gate_operation.GateOperation.__new__(gate_operation.GateOperation)
+            op._gate = self
+            op._qubits = qubits if type(qubits) is tuple else tuple(qubits)
+            return op
+        return super().on(*qubits)
+
+    def __call__(self, *qubits: cirq.Qid, **kwargs) -> cirq.Operation:
+        if not kwargs and len(qubits) == 2:
+            op = gate_operation.GateOperation.__new__(gate_operation.GateOperation)
+            op._gate = self
+            op._qubits = qubits if type(qubits) is tuple else tuple(qubits)
+            return op
+        return super().__call__(*qubits, **kwargs)
 
     def _decompose_(self, qubits):
         """See base class."""
@@ -205,6 +221,22 @@ class ISwapPowGate(gate_features.InterchangeableQubitsGate, eigen_gate.EigenGate
 
     def _num_qubits_(self) -> int:
         return 2
+
+    def on(self, *qubits: cirq.Qid) -> cirq.Operation:
+        if len(qubits) == 2:
+            op = gate_operation.GateOperation.__new__(gate_operation.GateOperation)
+            op._gate = self
+            op._qubits = qubits if type(qubits) is tuple else tuple(qubits)
+            return op
+        return super().on(*qubits)
+
+    def __call__(self, *qubits: cirq.Qid, **kwargs) -> cirq.Operation:
+        if not kwargs and len(qubits) == 2:
+            op = gate_operation.GateOperation.__new__(gate_operation.GateOperation)
+            op._gate = self
+            op._qubits = qubits if type(qubits) is tuple else tuple(qubits)
+            return op
+        return super().__call__(*qubits, **kwargs)
 
     def _eigen_components(self) -> list[tuple[float, np.ndarray]]:
         # yapf: disable

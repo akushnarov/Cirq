@@ -1473,3 +1473,29 @@ def test_decompose_with_extracted_phases(gate_type: type, exponent: cirq.TParamV
         op = cirq.resolve_parameters(op, resolver)
         decomposed_circuit = cirq.resolve_parameters(decomposed_circuit, resolver)
     np.testing.assert_allclose(cirq.unitary(op), cirq.unitary(decomposed_circuit), atol=1e-10)
+
+
+def test_2q_fast_instantiation() -> None:
+    q0, q1, q2 = cirq.LineQubit.range(3)
+    for gate in (cirq.CZ, cirq.CNOT, cirq.CZPowGate(exponent=0.5), cirq.CXPowGate(exponent=0.5)):
+        # Test __call__ fast path
+        op1 = gate(q0, q1)
+        assert isinstance(op1, cirq.GateOperation)
+        assert op1.gate == gate
+        assert op1.qubits == (q0, q1)
+
+        # Test on fast path
+        op2 = gate.on(q0, q1)
+        assert isinstance(op2, cirq.GateOperation)
+        assert op2.gate == gate
+        assert op2.qubits == (q0, q1)
+
+        # Test fallback when arity != 2
+        with pytest.raises(ValueError):
+            _ = gate.on(q0)
+        with pytest.raises(ValueError):
+            _ = gate(q0)
+        with pytest.raises(ValueError):
+            _ = gate.on(q0, q1, q2)
+        with pytest.raises(ValueError):
+            _ = gate(q0, q1, q2)
