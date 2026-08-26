@@ -661,3 +661,24 @@ def test_symmetric_2q_gate_operation_equality_and_hashing() -> None:
         op1 = gate(q0, q1)
         op2 = gate(q1, q0)
         assert op1 != op2
+
+    # Pointer-priority identical tuple fast path (sq is oq)
+    qubits_tuple = (q0, q1)
+    op_shared_a = cirq.GateOperation(cirq.CZ, qubits_tuple)
+    op_shared_b = cirq.GateOperation(cirq.CZ, qubits_tuple)
+    assert op_shared_a == op_shared_b
+
+    # Non-pointer identical symmetric 2Q equality fallback
+    qid0 = cirq.LineQid(0, dimension=2)
+    qid1 = cirq.LineQid(1, dimension=2)
+    assert qid0 is not q0 and qid0 == q0
+    assert qid1 is not q1 and qid1 == q1
+    op_nonptr_1 = cirq.CZ(q0, q1)
+    op_nonptr_2 = cirq.CZ(qid1, qid0)
+    assert op_nonptr_1 == op_nonptr_2
+    assert op_nonptr_2 == op_nonptr_1
+
+    # 3-qubit value equality fallback
+    op_3q_1 = cirq.CCNOT(q0, q1, q2)
+    op_3q_2 = cirq.CCNOT(qid0, qid1, cirq.LineQid(2, dimension=2))
+    assert op_3q_1 == op_3q_2
