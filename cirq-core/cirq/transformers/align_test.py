@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import collections
 
+import pytest
+
 import cirq
 
 
@@ -283,3 +285,24 @@ def test_align_with_ignored_tagged_classical_controls() -> None:
     context = cirq.TransformerContext(tags_to_ignore=(tag,))
     aligned = cirq.align_left(c, context=context)
     cirq.testing.assert_same_circuits(aligned, c)
+
+
+def test_align_circuit_impl() -> None:
+    from cirq.transformers.align import _align_circuit_impl
+
+    q1 = cirq.NamedQubit('q1')
+    q2 = cirq.NamedQubit('q2')
+    c = cirq.Circuit(
+        [
+            cirq.Moment([cirq.X(q1)]),
+            cirq.Moment([cirq.Y(q1), cirq.X(q2)]),
+            cirq.Moment([cirq.X(q1)]),
+        ]
+    )
+    left = _align_circuit_impl(c, context=None, align_direction=cirq.Alignment.LEFT)
+    right = _align_circuit_impl(c, context=None, align_direction=cirq.Alignment.RIGHT)
+    cirq.testing.assert_same_circuits(left, cirq.align_left(c))
+    cirq.testing.assert_same_circuits(right, cirq.align_right(c))
+
+    with pytest.raises(ValueError, match="Unsupported alignment direction"):
+        _align_circuit_impl(c, context=None, align_direction=cirq.Alignment.FIRST)

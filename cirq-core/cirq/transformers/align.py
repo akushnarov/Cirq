@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 from typing import TYPE_CHECKING
 
 from cirq import circuits, ops, protocols
@@ -26,22 +25,18 @@ if TYPE_CHECKING:
     import cirq
 
 
-@transformer_api.transformer(add_deep_support=True)
-def align_left(
-    circuit: cirq.AbstractCircuit, *, context: cirq.TransformerContext | None = None
+def _align_circuit_impl(
+    circuit: cirq.AbstractCircuit,
+    context: cirq.TransformerContext | None,
+    align_direction: circuits.circuit.Alignment,
 ) -> cirq.Circuit:
-    """Aligns gates to the left of the circuit.
+    """Internal placement engine supporting both left and right alignment."""
+    if align_direction not in (circuits.circuit.Alignment.LEFT, circuits.circuit.Alignment.RIGHT):
+        raise ValueError(f"Unsupported alignment direction: {align_direction}")
 
-    Note that tagged operations with tag in `context.tags_to_ignore` will continue to stay in their
-    original position and will not be aligned.
+    if align_direction == circuits.circuit.Alignment.RIGHT:
+        circuit = transformer_primitives.reverse_circuit(circuit)
 
-    Args:
-          circuit: Input circuit to transform.
-          context: `cirq.TransformerContext` storing common configurable options for transformers.
-
-    Returns:
-          Copy of the transformed input circuit.
-    """
     if context is None:
         context = transformer_api.TransformerContext()
 
@@ -127,9 +122,31 @@ def align_left(
                         if target_idx > prev:
                             ckey_indices[k] = target_idx
 
-    return circuits.Circuit._from_moments(
+    res = circuits.Circuit._from_moments(
         [circuits.Moment(m) for m in moments_ops], tags=circuit.tags
     )
+    if align_direction == circuits.circuit.Alignment.RIGHT:
+        return transformer_primitives.reverse_circuit(res)
+    return res
+
+
+@transformer_api.transformer(add_deep_support=True)
+def align_left(
+    circuit: cirq.AbstractCircuit, *, context: cirq.TransformerContext | None = None
+) -> cirq.Circuit:
+    """Aligns gates to the left of the circuit.
+
+    Note that tagged operations with tag in `context.tags_to_ignore` will continue to stay in their
+    original position and will not be aligned.
+
+    Args:
+          circuit: Input circuit to transform.
+          context: `cirq.TransformerContext` storing common configurable options for transformers.
+
+    Returns:
+          Copy of the transformed input circuit.
+    """
+    return _align_circuit_impl(circuit, context, circuits.circuit.Alignment.LEFT)
 
 
 @transformer_api.transformer(add_deep_support=True)
@@ -148,11 +165,4 @@ def align_right(
     Returns:
           Copy of the transformed input circuit.
     """
-    if context is not None and context.deep is True:
-        context = dataclasses.replace(context, deep=False)
-    # Reverse the circuit, align left, and reverse again. Note each moment also has to have its ops
-    # reversed internally, to avoid edge conditions where non-commuting but can-be-in-same-moment
-    # ops (measurements and classical controls, particularly) could end up getting swapped.
-    backwards = transformer_primitives.reverse_circuit(circuit)
-    aligned_backwards = align_left(backwards, context=context)
-    return transformer_primitives.reverse_circuit(aligned_backwards)
+    return _align_circuit_impl(circuit, context, circuits.circuit.Alignment.RIGHT)
