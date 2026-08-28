@@ -241,6 +241,15 @@ class GridQid(_BaseGridQid):
                 the number of quantum levels.
         """
         dimension = int(dimension)
+        if cls is not GridQid:
+            cls.validate_dimension(dimension)
+            inst = super().__new__(cls)
+            inst._row = row
+            inst._col = col
+            inst._dimension = dimension
+            inst._hash = ((dimension - 2) * 1_000_003 + hash(col)) * 1_000_003 + hash(row)
+            return inst
+
         key = (row, col, dimension)
         inst = cls._cache.get(key)
         if inst is None:
@@ -374,7 +383,10 @@ class GridQid(_BaseGridQid):
         return protocols.obj_to_dict_helper(self, ['row', 'col', 'dimension'])
 
 
-_FAST_GRID_QUBIT_CACHE: list[list[GridQubit | None]] = [[None] * 32 for _ in range(32)]
+_FAST_GRID_QUBIT_CACHE_SIZE: int = 64
+_FAST_GRID_QUBIT_CACHE: list[list[GridQubit | None]] = [
+    [None] * _FAST_GRID_QUBIT_CACHE_SIZE for _ in range(_FAST_GRID_QUBIT_CACHE_SIZE)
+]
 
 
 class GridQubit(_BaseGridQid):
@@ -408,12 +420,18 @@ class GridQubit(_BaseGridQid):
             row: the row coordinate
             col: the column coordinate
         """
+        if cls is not GridQubit:
+            inst = super().__new__(cls)
+            inst._row = row
+            inst._col = col
+            inst._hash = hash(col) * 1_000_003 + hash(row)
+            return inst
+
         if (
-            cls is GridQubit
-            and type(row) is int
+            type(row) is int
             and type(col) is int
-            and 0 <= row < 32
-            and 0 <= col < 32
+            and 0 <= row < _FAST_GRID_QUBIT_CACHE_SIZE
+            and 0 <= col < _FAST_GRID_QUBIT_CACHE_SIZE
         ):
             inst = _FAST_GRID_QUBIT_CACHE[row][col]
             if inst is not None:

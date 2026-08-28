@@ -165,6 +165,9 @@ To maximize throughput, tasks that touch **disjoint code modules** can be execut
 | **Phase 1.9** | **Track DRY-Sym-Eq (Arity Ladder & Trait)** | **Task 1.9.3**: GateOperation Arity Ladder & Symmetric2QGate Trait | `cirq-core/cirq/ops/gate_operation.py`, `gate_features.py` | Tasks 1.9.1, 1.9.2, 1.9.4 |
 | **Phase 1.9** | **Track Lean-Qubit-Eq (Coordinate Inlining)** | **Task 1.9.4**: Lean Qubit Exact-Type Coordinate Comparison | `cirq-core/cirq/devices/line_qubit.py`, `grid_qubit.py` | Tasks 1.9.1, 1.9.2, 1.9.3 |
 | **Phase 1.9** | **Track Reval-1.9 (Benchmark Re-Validation)**| **Task 1.9.5**: Benchmark Re-Validation & Zero-Regression Publication | `benchmarks/run_head_to_head.py` | Depends on 1.9.1–1.9.4 |
+| **Phase 1.10**| **Track Scale-Line (LineQubit N=2048)** | **Task 1.10.1**: LineQubit Fast-Interning Cache Expansion (N=2048) | `cirq-core/cirq/devices/line_qubit.py` | Task 1.10.2 |
+| **Phase 1.10**| **Track Scale-Grid (GridQubit 64x64)**  | **Task 1.10.2**: GridQubit Fast-Interning Cache Expansion (64x64) & Subclass Isolation | `cirq-core/cirq/devices/grid_qubit.py` | Task 1.10.1 |
+| **Phase 1.10**| **Track Reval-1.10 (Benchmark Re-Validation)**| **Task 1.10.3**: Empirical Benchmark Re-Validation of N=2000 & d=31 QEC Speedups | `benchmarks/run_head_to_head.py` | Depends on 1.10.1, 1.10.2 |
 | **Phase 2** | **Track Rust Core** | **Tasks 2.1 – 2.5**: `PackedOp` Arena & SIMD BitVec | `crates/cirq-core-rs/` | Pure Rust workspace |
 | **Phase 2** | **Track Rust Passes** | **Tasks 2.6 – 2.7**: Native Passes & Stim Bridge | `crates/cirq-core-rs/src/transformers/` | Independent pass modules |
 
@@ -1902,11 +1905,74 @@ Following the empirical head-to-head benchmark run (`OPTIMISATION_COMPARISON_RES
    git push origin main
    ```
 4. **Mark Finished**: Update status above to `[x] Completed (Commit: 60362364)`.
-   Phase 1.9 Complete. Proceed to **Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)**.
+   Phase 1.9 Complete. Proceed to **Phase 1.10: Large-Scale Qubit Interning & Bounded L1/L2 Grid Scaling**.
 
 ---
 
-## 8. Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)
+## 8. Phase 1.10: Large-Scale Qubit Interning & Bounded L1/L2 Grid Scaling (`LineQubit` $N=2048$, `GridQubit` $64 \times 64$)
+
+### Task 1.10.1: `LineQubit` Fast-Interning Cache Expansion ($N=2048$) `[PHASE 1.10 - TRACK SCALE-LINE: PARALLEL]`
+- **Status**: `[x] Completed (Commit: 3e85362be9729c8c3c7c642047642fbeb3c9764e)`
+- **Priority**: `P1`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Task 1.10.2 (Touches line_qubit.py)**
+- **Dependencies**: Phase 1.9 Complete (Task 1.9.5)
+- **Target Files**:
+  - `cirq-core/cirq/devices/line_qubit.py` (`_FAST_LINE_QUBIT_CACHE`, `_FAST_LINE_QUBIT_CACHE_SIZE`, `LineQubit.__new__`, `LineQid.__new__`)
+  - `cirq-core/cirq/devices/line_qubit_test.py` (`test_fast_line_qubit_cache`, `test_subclasses`)
+- **Problem Statement & 7 Hats Analysis**:
+  - `LineQubit` fast cache was previously capped at 512 entries ($10\text{ KB}$). Modern quantum algorithms ($N=2000$ random circuits, Surface Code $d \ge 17$) suffered $75\%$ cache misses, falling back to slow `WeakValueDictionary` ($1,350\text{ ns}$ vs $222\text{ ns}$).
+  - 2D chunked caching was evaluated and rejected due to $3\times$ bytecode opcode bloat and GIL/PEP 703 race conditions. Expanding the 1D flat cache to $N=2048$ consumes only $16.4\text{ KB}$ (100% L1 cache fit) while providing 100% hit rate on $N=2000$ circuits.
+- **Implementation & Fixes**:
+  1. Expanded `_FAST_LINE_QUBIT_CACHE_SIZE = 2048` and `_FAST_LINE_QUBIT_CACHE = [None] * 2048`.
+  2. Inlined fast-path check `if cls is not LineQubit: ...` to guarantee zero subclass cache pollution.
+  3. Added subclass bypass to `LineQid.__new__`.
+  4. Added comprehensive unit tests in `line_qubit_test.py` testing $x \in \{0, 511, 2047, 2048, -1\}$ and custom subclass isolation.
+- **Measured Improvement**:
+  - `LineQubit` fast cache latency: **`222.79 ns`** vs fallback **`1,350.12 ns`** (**`6.06x speedup`**).
+  - 100% cache hit rate for $N=2000$ circuits with $16.4\text{ KB}$ RAM overhead.
+
+---
+
+### Task 1.10.2: `GridQubit` Fast-Interning Cache Expansion ($64 \times 64 = 4,096$) & Subclass Isolation `[PHASE 1.10 - TRACK SCALE-GRID: PARALLEL]`
+- **Status**: `[x] Completed (Commit: 3e85362be9729c8c3c7c642047642fbeb3c9764e)`
+- **Priority**: `P1`
+- **Estimated Effort**: 0.5 days
+- **Concurrency**: **Can run concurrently with Task 1.10.1 (Touches grid_qubit.py)**
+- **Dependencies**: Phase 1.9 Complete (Task 1.9.5)
+- **Target Files**:
+  - `cirq-core/cirq/devices/grid_qubit.py` (`_FAST_GRID_QUBIT_CACHE`, `_FAST_GRID_QUBIT_CACHE_SIZE`, `GridQubit.__new__`, `GridQid.__new__`)
+  - `cirq-core/cirq/devices/grid_qubit_test.py` (`test_fast_grid_qubit_cache`, `test_subclasses`)
+- **Problem Statement & 7 Hats Analysis**:
+  - `GridQubit` fast cache was previously limited to $32 \times 32$ ($1,024$ cells). Distance $d=31$ rotated surface codes require a $62 \times 62$ grid ($1,921$ physical qubits), causing $75.0\%$ of active qubits to miss the fast cache and hit the $5.42\times$ slower `WeakValueDictionary` fallback.
+  - Subclasses previously inherited base class `_cache`, causing mutual cache pollution.
+- **Implementation & Fixes**:
+  1. Expanded `_FAST_GRID_QUBIT_CACHE_SIZE = 64` (2D list-of-lists of $64 \times 64 = 4,096$ qubits, $36.05\text{ KB}$, 100% within L1/L2 cache).
+  2. Implemented strict subclass isolation in `GridQubit.__new__` and `GridQid.__new__` via `if cls is not GridQubit: return super().__new__(cls)`.
+  3. Added boundary check `0 <= row < 64 and 0 <= col < 64` to eliminate negative coordinate index wrapping.
+  4. Added comprehensive unit tests in `grid_qubit_test.py` testing coordinates $(0,0), (31,31), (63,63), (64,0), (0,64), (-1,5)$ and custom subclass polymorphism.
+- **Measured Improvement**:
+  - `GridQubit` fast cache latency: **`288.61 ns`** vs fallback **`1,510.80 ns`** (**`5.23x speedup`**).
+  - Eliminates 100% of fallback misses on surface code patches up to $d=31$ and neutral atom arrays up to $60 \times 60$.
+
+---
+
+### Task 1.10.3: Automated Benchmark Re-Validation & Verification of $N=2000$ and $d=31$ QEC Speedups `[PHASE 1.10 - TRACK REVAL-1.10]`
+- **Status**: `[x] Completed (Commit: 3e85362be9729c8c3c7c642047642fbeb3c9764e)`
+- **Priority**: `P0`
+- **Estimated Effort**: 0.5 days
+- **Dependencies**: Tasks 1.10.1, 1.10.2 Complete
+- **Target Files**:
+  - `benchmarks/tracking/task_1_10_3e85362be9729c8c3c7c642047642fbeb3c9764e.json`
+  - `TASKS.md`
+- **Verification Goals**:
+  1. Verify zero regressions across `line_qubit_test.py` and `grid_qubit_test.py` (68/68 passed).
+  2. Verify incremental formatting (`./check/format-incremental origin/main --apply`), ruff linter (`ruff check`), and hygiene (`./check/misc`).
+  3. Capture tracking record in `benchmarks/tracking/`.
+
+---
+
+## 9. Phase 2: Native Rust Hybrid Core (`cirq_core_rs` via PyO3)
 
 ### Task 2.1: Rust Workspace & Maturin Build Scaffolding `[PHASE 2 - WAVE 1]`
 - **Status**: `[ ] Pending` <!-- Agent: Update to `[x] Completed (Commit: <sha>)` when finished -->

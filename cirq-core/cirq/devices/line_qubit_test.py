@@ -339,7 +339,9 @@ def test_non_integer_index(dtype) -> None:
 
 
 def test_fast_line_qubit_cache() -> None:
-    from cirq.devices.line_qubit import _FAST_LINE_QUBIT_CACHE
+    from cirq.devices.line_qubit import _FAST_LINE_QUBIT_CACHE, _FAST_LINE_QUBIT_CACHE_SIZE
+
+    assert _FAST_LINE_QUBIT_CACHE_SIZE == 2048
 
     # Small index cached
     q0 = cirq.LineQubit(0)
@@ -353,11 +355,16 @@ def test_fast_line_qubit_cache() -> None:
     assert q511 is q511_again
     assert _FAST_LINE_QUBIT_CACHE[511] is q511
 
+    q2047 = cirq.LineQubit(2047)
+    q2047_again = cirq.LineQubit(2047)
+    assert q2047 is q2047_again
+    assert _FAST_LINE_QUBIT_CACHE[2047] is q2047
+
     # Large index not in fast cache but in _cache
-    q512 = cirq.LineQubit(512)
-    q512_again = cirq.LineQubit(512)
-    assert q512 is q512_again
-    assert cirq.LineQubit._cache[512] is q512
+    q2048 = cirq.LineQubit(2048)
+    q2048_again = cirq.LineQubit(2048)
+    assert q2048 is q2048_again
+    assert cirq.LineQubit._cache[2048] is q2048
 
     # Negative index
     q_neg = cirq.LineQubit(-1)
@@ -371,3 +378,41 @@ def test_fast_line_qubit_cache() -> None:
     assert qid.dimension == 3
     assert qid is not q0
     assert q0 == cirq.LineQid(0, dimension=2)
+
+
+def test_subclasses() -> None:
+    class SubLineQubit(cirq.LineQubit):
+        """Custom user subclass."""
+
+    class SubLineQid(cirq.LineQid):
+        """Custom user qudit subclass."""
+
+    # 1. Subclass instances maintain their exact class identity
+    sq = SubLineQubit(10)
+    assert type(sq) is SubLineQubit
+    assert isinstance(sq, cirq.LineQubit)
+    assert sq.x == 10
+
+    sqid = SubLineQid(10, dimension=3)
+    assert type(sqid) is SubLineQid
+    assert isinstance(sqid, cirq.LineQid)
+    assert sqid.x == 10 and sqid.dimension == 3
+
+    # 2. Subclasses DO NOT pollute base LineQubit or LineQid caches
+    lq = cirq.LineQubit(10)
+    assert type(lq) is cirq.LineQubit
+    assert sq is not lq
+    assert sq == lq
+
+    lqid = cirq.LineQid(10, dimension=3)
+    assert type(lqid) is cirq.LineQid
+    assert sqid is not lqid
+    assert sqid == lqid
+
+    # 3. Subclass with fast-range indices (0..2047) does not pollute fast table
+    sq_fast = SubLineQubit(0)
+    lq_fast = cirq.LineQubit(0)
+    assert type(sq_fast) is SubLineQubit
+    assert type(lq_fast) is cirq.LineQubit
+    assert sq_fast is not lq_fast
+    assert sq_fast == lq_fast

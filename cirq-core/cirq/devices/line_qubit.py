@@ -203,6 +203,14 @@ class LineQid(_BaseLineQid):
                 the number of quantum levels.
         """
         dimension = int(dimension)
+        if cls is not LineQid:
+            cls.validate_dimension(dimension)
+            inst = super().__new__(cls)
+            inst._x = x
+            inst._dimension = dimension
+            inst._hash = (dimension - 2) * 1_000_003 + hash(x)
+            return inst
+
         key = (x, dimension)
         inst = cls._cache.get(key)
         if inst is None:
@@ -284,7 +292,8 @@ class LineQid(_BaseLineQid):
         return protocols.obj_to_dict_helper(self, ['x', 'dimension'])
 
 
-_FAST_LINE_QUBIT_CACHE: list[LineQubit | None] = [None] * 512
+_FAST_LINE_QUBIT_CACHE_SIZE: int = 2048
+_FAST_LINE_QUBIT_CACHE: list[LineQubit | None] = [None] * _FAST_LINE_QUBIT_CACHE_SIZE
 
 
 class LineQubit(_BaseLineQid):
@@ -317,7 +326,13 @@ class LineQubit(_BaseLineQid):
         Args:
             x: The x coordinate.
         """
-        if cls is LineQubit and type(x) is int and 0 <= x < 512:
+        if cls is not LineQubit:
+            inst = super().__new__(cls)
+            inst._x = x
+            inst._hash = hash(x)
+            return inst
+
+        if type(x) is int and 0 <= x < _FAST_LINE_QUBIT_CACHE_SIZE:
             inst = _FAST_LINE_QUBIT_CACHE[x]
             if inst is not None:
                 return inst

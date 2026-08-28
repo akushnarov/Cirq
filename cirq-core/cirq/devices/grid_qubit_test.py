@@ -506,8 +506,48 @@ def test_weakref_gc_lifecycle() -> None:
     assert qid_key not in cirq.GridQid._cache
 
 
+def test_subclasses() -> None:
+    class SubGridQubit(cirq.GridQubit):
+        """Custom user subclass."""
+
+    class SubGridQid(cirq.GridQid):
+        """Custom user qudit subclass."""
+
+    # 1. Subclass instances maintain their exact class identity
+    sq = SubGridQubit(10, 20)
+    assert type(sq) is SubGridQubit
+    assert isinstance(sq, cirq.GridQubit)
+    assert sq.row == 10 and sq.col == 20
+
+    sqid = SubGridQid(10, 20, dimension=3)
+    assert type(sqid) is SubGridQid
+    assert isinstance(sqid, cirq.GridQid)
+    assert sqid.row == 10 and sqid.col == 20 and sqid.dimension == 3
+
+    # 2. Subclasses DO NOT pollute base GridQubit or GridQid caches
+    gq = cirq.GridQubit(10, 20)
+    assert type(gq) is cirq.GridQubit
+    assert sq is not gq
+    assert sq == gq
+
+    gqid = cirq.GridQid(10, 20, dimension=3)
+    assert type(gqid) is cirq.GridQid
+    assert sqid is not gqid
+    assert sqid == gqid
+
+    # 3. Subclass with fast-range indices (0..63) does not pollute fast table
+    sq_fast = SubGridQubit(0, 0)
+    gq_fast = cirq.GridQubit(0, 0)
+    assert type(sq_fast) is SubGridQubit
+    assert type(gq_fast) is cirq.GridQubit
+    assert sq_fast is not gq_fast
+    assert sq_fast == gq_fast
+
+
 def test_fast_grid_qubit_cache() -> None:
-    from cirq.devices.grid_qubit import _FAST_GRID_QUBIT_CACHE
+    from cirq.devices.grid_qubit import _FAST_GRID_QUBIT_CACHE, _FAST_GRID_QUBIT_CACHE_SIZE
+
+    assert _FAST_GRID_QUBIT_CACHE_SIZE == 64
 
     # Small index cached
     q00 = cirq.GridQubit(0, 0)
@@ -521,16 +561,21 @@ def test_fast_grid_qubit_cache() -> None:
     assert q31_31 is q31_31_again
     assert _FAST_GRID_QUBIT_CACHE[31][31] is q31_31
 
-    # Large row/col not in fast cache but in _cache
-    q32_0 = cirq.GridQubit(32, 0)
-    q32_0_again = cirq.GridQubit(32, 0)
-    assert q32_0 is q32_0_again
-    assert cirq.GridQubit._cache[(32, 0)] is q32_0
+    q63_63 = cirq.GridQubit(63, 63)
+    q63_63_again = cirq.GridQubit(63, 63)
+    assert q63_63 is q63_63_again
+    assert _FAST_GRID_QUBIT_CACHE[63][63] is q63_63
 
-    q0_32 = cirq.GridQubit(0, 32)
-    q0_32_again = cirq.GridQubit(0, 32)
-    assert q0_32 is q0_32_again
-    assert cirq.GridQubit._cache[(0, 32)] is q0_32
+    # Large row/col not in fast cache but in _cache
+    q64_0 = cirq.GridQubit(64, 0)
+    q64_0_again = cirq.GridQubit(64, 0)
+    assert q64_0 is q64_0_again
+    assert cirq.GridQubit._cache[(64, 0)] is q64_0
+
+    q0_64 = cirq.GridQubit(0, 64)
+    q0_64_again = cirq.GridQubit(0, 64)
+    assert q0_64 is q0_64_again
+    assert cirq.GridQubit._cache[(0, 64)] is q0_64
 
     # Negative coordinates
     q_neg = cirq.GridQubit(-1, 5)
