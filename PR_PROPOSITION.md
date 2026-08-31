@@ -15,7 +15,20 @@ The optimization work spans **160 modified files** and delivered an **11.42x tot
 
 ---
 
-## 2. Dependency Graph & Rollout Sequence
+## 2. Summary Matrix
+
+| PR # | Title | Core Files | Size (Diff) | Benchmark Impact |
+| :---: | :--- | :--- | :---: | :--- |
+| **PR 1** | **Devices & Qubits** | `devices/line_qubit.py`, `grid_qubit.py` | ~400 lines | **5.55x faster** qubit instantiation, **-22.2%** RAM |
+| **PR 2** | **Ops & Pauli Strings** | `ops/pauli_string.py`, `gate_operation.py`, `gate_features.py` | ~650 lines | **-66.2%** heap memory, **1.63x faster** equality |
+| **PR 3** | **Circuit & Moment** | `circuits/circuit.py`, `moment.py` | ~750 lines | **14.6x faster** circuit build, **99.8% less** QEC RAM |
+| **PR 4** | **CircuitDag Linear** | `circuits/circuit_dag.py` | ~450 lines | **662x faster** DAG build ($O(N^2) \to O(N)$) |
+| **PR 5** | **Transformers & Routing**| `transformers/routing/mapping_manager.py`, `align.py` | ~350 lines | **1,077x faster** routing init, **11x faster** align |
+| **PR 6** | **Protocols & QEC** | `protocols/decompose_protocol.py`, `experiments/` | ~500 lines | **2.2x faster** param sweeps, fast decomposition |
+
+---
+
+## 3. Dependency Graph & Rollout Sequence
 
 ```mermaid
 graph TD
@@ -28,7 +41,7 @@ graph TD
 
 ---
 
-## 3. Detailed PR Specifications
+## 4. Detailed PR Specifications
 
 ### 1️⃣ PR 1: `perf(devices): slotted qubit hierarchy & small-index static array interning`
 - **Subsystem**: `cirq-core/cirq/devices/`
@@ -129,19 +142,6 @@ graph TD
 - **Estimated Diff**: ~500 lines (`+450 / -50`)
 - **Key Impact**: Parameter sweeps **2.18x faster**; `decompose` **1.38x faster**; high-throughput QEC generation.
 - **Dependencies**: PR 2.
-
----
-
-## 4. Summary Matrix
-
-| PR # | Title | Core Files | Size (Diff) | Benchmark Impact |
-| :---: | :--- | :--- | :---: | :--- |
-| **PR 1** | **Devices & Qubits** | `devices/line_qubit.py`, `grid_qubit.py` | ~400 lines | 5.55x faster qubit instantiation, -22% RAM |
-| **PR 2** | **Ops & Pauli Strings** | `ops/pauli_string.py`, `gate_operation.py`, `gate_features.py` | ~650 lines | -66% heap memory, 1.63x faster equality |
-| **PR 3** | **Circuit & Moment** | `circuits/circuit.py`, `moment.py` | ~750 lines | 14.6x faster circuit build, 99.8% less QEC RAM |
-| **PR 4** | **CircuitDag Linear** | `circuits/circuit_dag.py` | ~450 lines | 662x faster DAG build ($O(N^2) \to O(N)$) |
-| **PR 5** | **Transformers & Routing**| `transformers/routing/mapping_manager.py`, `align.py` | ~350 lines | 1,077x faster routing init, 11x faster align |
-| **PR 6** | **Protocols & QEC** | `protocols/decompose_protocol.py`, `experiments/` | ~500 lines | 2.2x faster param sweeps, fast decomposition |
 
 ---
 
